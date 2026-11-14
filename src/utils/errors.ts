@@ -7,7 +7,7 @@ export class AppError extends Error {
     super(message);
   }
 }
-
+export const badRequest = (m: string) => new AppError(400, m, "BadRequest");
 export const unauthorized = (m = "Authentication required") =>
   new AppError(401, m, "Unauthorized");
 export const forbidden = (m = "You do not have permission to do this") =>
