@@ -9,6 +9,8 @@ import { categoriesRouter } from "./routes/categories.js";
 import { postsRouter } from "./routes/posts.js";
 import { commentsRouter } from "./routes/comments.js";
 import { likesRouter } from "./routes/likes.js";
+import { feedRouter } from "./routes/feed.js";
+import { usersRouter } from "./routes/users.js";
 
 export const app = express();
 
@@ -30,6 +32,8 @@ app.use("/api/categories", categoriesRouter);
 app.use("/api/posts", postsRouter);
 app.use("/api", likesRouter);
 app.use("/api", commentsRouter);
+app.use("/api/users", usersRouter);
+app.use("/api/feed", feedRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

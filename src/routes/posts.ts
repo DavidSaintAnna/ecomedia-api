@@ -40,7 +40,7 @@ const listQuery = paginationSchema.extend({
 
 // One select used by every endpoint, so the post always has the same shape.
 // viewerId = the logged-in user (if any), used for likedByMe.
-const selectPost = (viewerId?: number) =>
+export const selectPost = (viewerId?: number) =>
   db
     .select({
       id: posts.id,
