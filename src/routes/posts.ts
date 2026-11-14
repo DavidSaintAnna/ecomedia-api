@@ -3,7 +3,7 @@ import { Router } from "express";
 import { z } from "zod";
 import { db } from "../db/index.js";
 import { categories, comments, likes, posts, users } from "../db/schema.js";
-import { authenticate } from "../middleware/auth.js";
+import { authenticate, optionalAuth } from "../middleware/auth.js";
 import { badRequest, forbidden, notFound } from "../utils/errors.js";
 import { idParam, paginated, paginationSchema } from "../utils/pagination.js";
 
@@ -38,8 +38,9 @@ const listQuery = paginationSchema.extend({
   authorId: z.coerce.number().int().positive().optional(),
 });
 
-// One select used by every endpoint, so the post always has the same shape
-const selectPost = () =>
+// One select used by every endpoint, so the post always has the same shape.
+// viewerId = the logged-in user (if any), used for likedByMe.
+const selectPost = (viewerId?: number) =>
   db
     .select({
       id: posts.id,
@@ -52,13 +53,16 @@ const selectPost = () =>
       category: { id: categories.id, name: categories.name },
       likesCount: sql<number>`(select count(*)::int from ${likes} where ${likes.postId} = ${posts.id})`,
       commentsCount: sql<number>`(select count(*)::int from ${comments} where ${comments.postId} = ${posts.id})`,
+      likedByMe: viewerId
+        ? sql<boolean>`exists (select 1 from ${likes} where ${likes.postId} = ${posts.id} and ${likes.userId} = ${viewerId})`
+        : sql<boolean>`false`,
     })
     .from(posts)
     .innerJoin(users, eq(users.id, posts.authorId))
     .innerJoin(categories, eq(categories.id, posts.categoryId));
 
-async function loadPost(id: number) {
-  const [row] = await selectPost().where(eq(posts.id, id));
+async function loadPost(id: number, viewerId?: number) {
+  const [row] = await selectPost(viewerId).where(eq(posts.id, id));
   if (!row) throw notFound("Post not found");
   return row;
 }
@@ -72,7 +76,7 @@ async function assertCategory(id: number) {
 }
 
 // GET /posts: public, filterable and paginated
-postsRouter.get("/", async (req, res) => {
+postsRouter.get("/", optionalAuth, async (req, res) => {
   const { page, limit, q, city, categoryId, authorId } = listQuery.parse(
     req.query,
   );
@@ -88,7 +92,7 @@ postsRouter.get("/", async (req, res) => {
     .select({ total: count() })
     .from(posts)
     .where(where);
-  const rows = await selectPost()
+  const rows = await selectPost(req.user?.id)
     .where(where)
     .orderBy(desc(posts.createdAt), desc(posts.id))
     .limit(limit)
@@ -98,9 +102,9 @@ postsRouter.get("/", async (req, res) => {
 });
 
 // GET /posts/:id: public
-postsRouter.get("/:id", async (req, res) => {
+postsRouter.get("/:id", optionalAuth, async (req, res) => {
   const { id } = idParam.parse(req.params);
-  res.json(await loadPost(id));
+  res.json(await loadPost(id, req.user?.id));
 });
 
 // POST /posts: logged-in users
@@ -123,7 +127,7 @@ postsRouter.post("/", authenticate, async (req, res) => {
     .values({ ...body, city, authorId: req.user!.id })
     .returning({ id: posts.id });
 
-  res.status(201).json(await loadPost(created.id));
+  res.status(201).json(await loadPost(created.id, req.user!.id));
 });
 
 // Author or admin only
@@ -151,7 +155,7 @@ postsRouter.patch("/:id", authenticate, async (req, res) => {
     .update(posts)
     .set({ ...body, updatedAt: new Date() })
     .where(eq(posts.id, id));
-  res.json(await loadPost(id));
+  res.json(await loadPost(id, req.user!.id));
 });
 
 // DELETE /posts/:id

@@ -46,3 +46,17 @@ export const requireRole =
     if (!roles.includes(req.user.role)) throw forbidden();
     next();
   };
+
+  
+export const optionalAuth: RequestHandler = (req, _res, next) => {
+  const header = req.headers.authorization;
+  if (header?.startsWith('Bearer ')) {
+    try {
+      const payload = jwt.verify(header.slice(7), config.jwtSecret) as jwt.JwtPayload;
+      req.user = { id: Number(payload.sub), role: payload.role as Role };
+    } catch {
+   
+    }
+  }
+  next();
+};

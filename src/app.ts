@@ -7,6 +7,8 @@ import { errorHandler, notFoundHandler } from "./middleware/error.js";
 import { authRouter } from "./routes/auth.js";
 import { categoriesRouter } from "./routes/categories.js";
 import { postsRouter } from "./routes/posts.js";
+import { commentsRouter } from "./routes/comments.js";
+import { likesRouter } from "./routes/likes.js";
 
 export const app = express();
 
@@ -26,6 +28,8 @@ app.get("/api/health", (_req, res) => {
 app.use("/api/auth", authRouter);
 app.use("/api/categories", categoriesRouter);
 app.use("/api/posts", postsRouter);
+app.use("/api", likesRouter);
+app.use("/api", commentsRouter);
 
 app.use(notFoundHandler);
 app.use(errorHandler);
