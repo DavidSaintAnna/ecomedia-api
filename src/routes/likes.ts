@@ -17,7 +17,7 @@ likesRouter.post("/posts/:id/like", authenticate, async (req, res) => {
     .select({ id: posts.id })
     .from(posts)
     .where(eq(posts.id, id));
-  if (!post) throw notFound("Post not found");
+  if (!post) throw notFound("Post não encontrado");
 
   const removed = await db
     .delete(likes)

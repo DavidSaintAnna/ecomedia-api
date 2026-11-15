@@ -30,7 +30,7 @@ async function assertPostExists(postId: number) {
     .select({ id: posts.id })
     .from(posts)
     .where(eq(posts.id, postId));
-  if (!post) throw notFound("Post not found");
+  if (!post) throw notFound("Post não encontrado");
 }
 
 // GET /posts/:id/comments: public, oldest first
@@ -71,9 +71,9 @@ commentsRouter.post("/posts/:id/comments", authenticate, async (req, res) => {
 commentsRouter.delete("/comments/:id", authenticate, async (req, res) => {
   const { id } = idParam.parse(req.params);
   const [comment] = await db.select().from(comments).where(eq(comments.id, id));
-  if (!comment) throw notFound("Comment not found");
+  if (!comment) throw notFound("Comentário não encontrado");
   if (req.user!.role !== "ADMIN" && comment.authorId !== req.user!.id) {
-    throw forbidden("You can only delete your own comments");
+    throw forbidden("Você só pode excluir os seus próprios comentários");
   }
   await db.delete(comments).where(eq(comments.id, id));
   res.status(204).end();

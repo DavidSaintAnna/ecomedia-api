@@ -22,7 +22,7 @@ categoriesRouter.get("/", async (_req, res) => {
 categoriesRouter.get("/:id", async (req, res) => {
   const { id } = idParam.parse(req.params);
   const [row] = await db.select().from(categories).where(eq(categories.id, id));
-  if (!row) throw notFound("Category not found");
+  if (!row) throw notFound("Categoria não encontrada");
   res.json(row);
 });
 
@@ -37,7 +37,7 @@ categoriesRouter.post(
       .select({ id: categories.id })
       .from(categories)
       .where(eq(categories.name, body.name));
-    if (exists) throw conflict("Category already exists");
+    if (exists) throw conflict("Categoria já existe");
     const [row] = await db.insert(categories).values(body).returning();
     res.status(201).json(row);
   },
@@ -55,7 +55,7 @@ categoriesRouter.put(
       .set(body)
       .where(eq(categories.id, id))
       .returning();
-    if (!row) throw notFound("Category not found");
+    if (!row) throw notFound("Categoria não encontrada");
     res.json(row);
   },
 );
@@ -70,7 +70,7 @@ categoriesRouter.delete(
       .delete(categories)
       .where(eq(categories.id, id))
       .returning();
-    if (!row) throw notFound("Category not found");
+    if (!row) throw notFound("Categoria não encontrada");
     res.status(204).end();
   },
 );

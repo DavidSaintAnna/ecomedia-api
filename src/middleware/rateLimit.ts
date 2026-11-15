@@ -4,7 +4,7 @@ const isTest = process.env.NODE_ENV === "test";
 
 const message = {
   error: "TooManyRequests",
-  message: "Too many requests, please try again later",
+  message: "Muitas requisições. Tente novamente mais tarde",
 };
 
 export const createApiLimiter = (limit: number, windowMs = 15 * 60 * 1000) =>

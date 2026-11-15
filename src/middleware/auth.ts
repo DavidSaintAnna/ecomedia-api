@@ -35,7 +35,7 @@ export const authenticate: RequestHandler = (req, _res, next) => {
     req.user = { id: Number(payload.sub), role: payload.role as Role };
     next();
   } catch {
-    throw unauthorized("Invalid or expired token");
+    throw unauthorized("Token inválido ou expirado");
   }
 };
 

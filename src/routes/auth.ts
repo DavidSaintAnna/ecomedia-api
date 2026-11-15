@@ -17,7 +17,7 @@ const limiter = rateLimit({
   legacyHeaders: false,
   message: {
     error: "TooManyRequests",
-    message: "Too many attempts, try again later",
+    message: "Muitas tentativas. Tente novamente mais tarde",
   },
 });
 
@@ -54,7 +54,7 @@ authRouter.post("/register", limiter, async (req, res) => {
     .select({ id: users.id })
     .from(users)
     .where(eq(users.email, body.email));
-  if (existing) throw conflict("Email already registered");
+  if (existing) throw conflict("E-mail já cadastrado");
 
   const { password, ...rest } = body;
   const passwordHash = await bcrypt.hash(password, 10);
@@ -80,7 +80,7 @@ authRouter.post("/login", limiter, async (req, res) => {
     .where(eq(users.email, body.email));
   const valid =
     user && (await bcrypt.compare(body.password, user.passwordHash));
-  if (!valid) throw unauthorized("Invalid email or password");
+  if (!valid) throw unauthorized("E-mail ou senha inválidos");
 
   res.json({
     user: publicUser(user),
@@ -93,6 +93,6 @@ authRouter.get("/me", authenticate, async (req, res) => {
     .select()
     .from(users)
     .where(eq(users.id, req.user!.id));
-  if (!user) throw notFound("User no longer exists");
+  if (!user) throw notFound("Usuário não existe mais");
   res.json(publicUser(user));
 });

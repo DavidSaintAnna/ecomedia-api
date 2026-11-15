@@ -28,7 +28,7 @@ const updateSchema = z
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, {
-    message: "Send at least one field to update",
+    message: "Envie pelo menos um campo para atualizar",
   });
 
 const listQuery = paginationSchema.extend({
@@ -63,7 +63,7 @@ export const selectPost = (viewerId?: number) =>
 
 async function loadPost(id: number, viewerId?: number) {
   const [row] = await selectPost(viewerId).where(eq(posts.id, id));
-  if (!row) throw notFound("Post not found");
+  if (!row) throw notFound("Post não encontrado");
   return row;
 }
 
@@ -72,7 +72,7 @@ async function assertCategory(id: number) {
     .select({ id: categories.id })
     .from(categories)
     .where(eq(categories.id, id));
-  if (!c) throw badRequest("categoryId does not exist");
+  if (!c) throw badRequest("A categoria informada (categoryId) não existe");
 }
 
 // GET /posts: public, filterable and paginated
@@ -139,9 +139,9 @@ async function assertCanEdit(
     .select({ authorId: posts.authorId })
     .from(posts)
     .where(eq(posts.id, postId));
-  if (!post) throw notFound("Post not found");
+  if (!post) throw notFound("Post não encontrado");
   if (user.role !== "ADMIN" && post.authorId !== user.id)
-    throw forbidden("You can only change your own posts");
+    throw forbidden("Você só pode alterar os seus próprios posts");
 }
 
 // PATCH /posts/:id

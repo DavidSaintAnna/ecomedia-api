@@ -7,7 +7,7 @@ export const notFoundHandler: RequestHandler = (req, res) => {
     .status(404)
     .json({
       error: "NotFound",
-      message: `Route ${req.method} ${req.path} not found`,
+      message: `Rota ${req.method} ${req.path} não encontrada`,
     });
 };
 
@@ -15,7 +15,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
   if (err instanceof ZodError) {
     res.status(400).json({
       error: "ValidationError",
-      message: "Invalid request data",
+      message: "Dados da requisição inválidos",
       details: err.issues.map((i) => ({
         path: i.path.join("."),
         message: i.message,
@@ -33,7 +33,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
       .status(409)
       .json({
         error: "Conflict",
-        message: "A record with these values already exists",
+        message: "Já existe um registro com esses valores",
       });
     return;
   }
@@ -42,14 +42,14 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
       .status(409)
       .json({
         error: "Conflict",
-        message: "This record is referenced by other data",
+        message: "Este registro está sendo usado por outros dados e não pode ser removido",
       });
     return;
   }
   if (err?.type === "entity.parse.failed") {
     res
       .status(400)
-      .json({ error: "BadRequest", message: "Malformed JSON body" });
+      .json({ error: "BadRequest", message: "O corpo da requisição não é um JSON válido" });
     return;
   }
    if (err?.type === "entity.too.large") {
@@ -57,7 +57,7 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
        .status(413)
        .json({
          error: "PayloadTooLarge",
-         message: "Request body is too large (max 100kb)",
+         message: "O corpo da requisição é grande demais (máximo de 100 KB)",
        });
      return;
    }
@@ -71,12 +71,12 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
        .status(err.status)
        .json({
          error: "BadRequest",
-         message: "The request could not be processed",
+         message: "Não foi possível processar a requisição",
        });
      return;
    }
   console.error(err);
   res
     .status(500)
-    .json({ error: "InternalServerError", message: "Something went wrong" });
+    .json({ error: "InternalServerError", message: "Algo deu errado. Tente novamente mais tarde" });
 };

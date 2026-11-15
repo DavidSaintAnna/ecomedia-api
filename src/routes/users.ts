@@ -21,7 +21,7 @@ const updateSchema = z
   })
   .partial()
   .refine((v) => Object.keys(v).length > 0, {
-    message: "Send at least one field to update",
+    message: "Envie pelo menos um campo para atualizar",
   });
 
 // Public profile: never includes email or password hash.
@@ -45,7 +45,7 @@ async function loadProfile(id: number, viewerId?: number) {
     })
     .from(users)
     .where(eq(users.id, id));
-  if (!row) throw notFound("User not found");
+  if (!row) throw notFound("Usuário não encontrado");
   return row;
 }
 
@@ -54,7 +54,7 @@ async function assertUserExists(id: number) {
     .select({ id: users.id })
     .from(users)
     .where(eq(users.id, id));
-  if (!u) throw notFound("User not found");
+  if (!u) throw notFound("Usuário não encontrado");
 }
 
 // PATCH /users/me: edit my own profile
@@ -74,7 +74,7 @@ usersRouter.get("/:id", optionalAuth, async (req, res) => {
 usersRouter.post("/:id/follow", authenticate, async (req, res) => {
   const { id } = idParam.parse(req.params);
   const me = req.user!.id;
-  if (id === me) throw badRequest("You cannot follow yourself");
+  if (id === me) throw badRequest("Você não pode seguir a si mesmo");
   await assertUserExists(id);
 
   const removed = await db
