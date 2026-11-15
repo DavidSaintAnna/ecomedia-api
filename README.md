@@ -40,11 +40,11 @@ A **EcoMedia** transforma essas ações em conteúdo compartilhável:
 
 **Modelo conceitual** (estilo BRModelo): as 4 entidades da API e como elas se relacionam. Uma pessoa publica vários posts, cada post tem exatamente uma categoria, pessoas curtem posts e comentam neles, e usuários seguem outros usuários.
 
-![Modelo conceitual da EcoMedia: entidades, relacionamentos, atributos e cardinalidades](docs/img/modelo-conceitual.png)
+![Modelo conceitual da EcoMedia: entidades, relacionamentos, atributos e cardinalidades](docs/modelo-conceitual.png)
 
 **Quem pode fazer o quê** e as regras que o sistema garante sozinho (e-mail único, curtir/seguir como interruptor, categoria obrigatória, ranking, feed…):
 
-![Matriz de permissões e regras de negócio da EcoMedia](docs/img/regras-de-negocio.png)
+![Matriz de permissões e regras de negócio da EcoMedia](docs/regras-de-negocio.png)
 
 Quem se cadastra pela API **sempre** vira usuário comum: ninguém consegue se promover a administrador.
 
