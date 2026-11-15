@@ -7,14 +7,17 @@
   "engines": {
     "node": ">=22.12.0"
   },
-  "scripts": {
-    "dev": "tsx watch src/server.ts",
+ "scripts": {
+  "dev": "tsx watch src/server.ts",
   "build": "tsc -p tsconfig.build.json",
-    "start": "node dist/server.js",
-    "typecheck": "tsc --noEmit",
-    "test": "vitest run --passWithNoTests",
-    "db:seed": "tsx src/db/seed.ts"
-  },
+  "start": "node dist/server.js",
+  "typecheck": "tsc --noEmit",
+  "db:generate": "drizzle-kit generate",
+  "db:migrate": "drizzle-kit migrate",
+  "db:seed": "tsx src/db/seed.ts",
+  "docs:gerar": "tsx scripts/gerar-docs.ts",
+  "test": "vitest run"
+},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/DavidSaintAnna/ecomedia-api.git"

@@ -1,0 +1,2559 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "API EcoMedia",
+    "version": "1.0.0",
+    "description": "A **EcoMedia** é uma rede social em que as pessoas de uma cidade compartilham ações sustentáveis do dia a dia:\ncompostagem, reciclagem, economia de água e energia, mobilidade, consumo consciente e mais.\nEla responde ao **Objetivo de Desenvolvimento Sustentável 11 da ONU — Cidades e Comunidades Sustentáveis**.\n\n## Como testar em 1 minuto\n\n1. Abra **Autenticação → `POST /api/auth/register`**, clique em **Testar** e depois em **Executar** (o exemplo já vem preenchido; troque o e-mail por um seu).\n2. Copie o valor do campo `token` da resposta.\n3. Clique no botão **Autorizar** (cadeado, no topo da página), cole o token e confirme.\n4. Pronto! Agora você pode testar as rotas protegidas (cadeado fechado), como criar posts, curtir e comentar.\n\n## Convenções\n\n- **Formato**: todas as requisições e respostas usam JSON (`Content-Type: application/json`).\n- **Autenticação**: o login devolve um token JWT. Nas rotas protegidas, envie o cabeçalho `Authorization: Bearer <token>`. O token vale 7 dias.\n- **Idioma**: as mensagens de erro vêm em português (campo `message`). O campo `error` é um código fixo em inglês, ideal para o código do front-end decidir o que fazer (`ValidationError`, `Unauthorized`, `NotFound`...).\n- **Paginação**: as listas devolvem `{ \"data\": [...], \"meta\": { \"page\", \"limit\", \"total\", \"totalPages\" } }`. Use `?page=` e `?limit=` (máximo de 50 por página).\n- **Limite de uso**: 300 requisições a cada 15 minutos por IP (50 nas rotas de cadastro e login). Ao exceder, a API responde `429`.\n- **Erros de validação** (`400`) trazem a lista `details`, indicando qual campo está errado e por quê.\n\n## Perfis de acesso\n\n- **Visitante** (sem login): lê posts, categorias, comentários, perfis, ranking e estatísticas.\n- **Usuário** (`USER`): tudo acima, mais criar/editar/excluir os próprios posts e comentários, curtir e seguir.\n- **Administrador** (`ADMIN`): tudo acima, mais gerenciar categorias e moderar (excluir) posts e comentários de qualquer pessoa.\n  Quem se cadastra pela API sempre vira `USER`; o administrador é criado pelo comando de seed.",
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Servidor atual (o mesmo endereço desta página)"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Sistema",
+      "description": "Rotas para conferir se a API está no ar."
+    },
+    {
+      "name": "Autenticação",
+      "description": "Cadastro, login e dados de quem está logado."
+    },
+    {
+      "name": "Categorias",
+      "description": "Tipos de ação sustentável (Reciclagem, Energia, Água...). A leitura é pública; criar, editar e excluir é só para administradores."
+    },
+    {
+      "name": "Posts",
+      "description": "Publicações de ações sustentáveis. A leitura é pública; escrever exige login."
+    },
+    {
+      "name": "Interações",
+      "description": "Curtidas e comentários nos posts."
+    },
+    {
+      "name": "Usuários",
+      "description": "Perfis públicos, edição do próprio perfil e seguir/deixar de seguir."
+    },
+    {
+      "name": "Feed",
+      "description": "Linha do tempo com os posts de quem você segue."
+    },
+    {
+      "name": "Ranking e estatísticas",
+      "description": "Quem mais inspira a comunidade e os números gerais da rede."
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "tags": [
+          "Sistema"
+        ],
+        "operationId": "infoApi",
+        "summary": "Informações da API",
+        "description": "Devolve o nome da API e os caminhos da documentação e da verificação de saúde.",
+        "responses": {
+          "200": {
+            "description": "Informações básicas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                },
+                "example": {
+                  "name": "EcoMedia API",
+                  "docs": "/api-docs",
+                  "health": "/api/health"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/health": {
+      "get": {
+        "tags": [
+          "Sistema"
+        ],
+        "operationId": "verificarSaude",
+        "summary": "Verificar se a API está no ar",
+        "description": "Não consulta o banco e não conta no limite de requisições. Útil para monitoramento e para a hospedagem.",
+        "responses": {
+          "200": {
+            "description": "A API está funcionando.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    }
+                  }
+                },
+                "example": {
+                  "status": "ok"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "operationId": "cadastrarUsuario",
+        "summary": "Criar uma conta",
+        "description": "Cadastra uma pessoa nova e já devolve o token de acesso, então não é preciso fazer login em seguida. A conta sempre nasce com o perfil `USER`. A senha é guardada com hash (bcrypt) e nunca é devolvida.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CadastroEntrada"
+              },
+              "example": {
+                "name": "Ana Souza",
+                "email": "ana@exemplo.com",
+                "password": "Senha12345",
+                "city": "São Paulo",
+                "bio": "Apaixonada por compostagem e bicicleta."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Conta criada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespostaAuth"
+                },
+                "example": {
+                  "user": {
+                    "id": 2,
+                    "name": "Ana Souza",
+                    "email": "ana@exemplo.com",
+                    "role": "USER",
+                    "city": "São Paulo",
+                    "bio": "Apaixonada por compostagem e bicicleta.",
+                    "avatarUrl": null,
+                    "createdAt": "2026-11-15T14:00:00.000Z"
+                  },
+                  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiVVNFUiIsInN1YiI6IjIiLCJpYXQiOjE3NjMyMTUyMDAsImV4cCI6MTc2MzgyMDAwMH0.assinatura-de-exemplo"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "409": {
+            "description": "Já existe uma conta com este e-mail.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "Conflict",
+                  "message": "E-mail já cadastrado"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/MuitasRequisicoes"
+          }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "operationId": "entrar",
+        "summary": "Entrar (fazer login)",
+        "description": "Confere e-mail e senha e devolve o token JWT. Por segurança, a mensagem de erro é a mesma quando o e-mail não existe ou a senha está errada.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoginEntrada"
+              },
+              "example": {
+                "email": "ana@exemplo.com",
+                "password": "Senha12345"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login feito.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespostaAuth"
+                },
+                "example": {
+                  "user": {
+                    "id": 2,
+                    "name": "Ana Souza",
+                    "email": "ana@exemplo.com",
+                    "role": "USER",
+                    "city": "São Paulo",
+                    "bio": "Apaixonada por compostagem e bicicleta.",
+                    "avatarUrl": null,
+                    "createdAt": "2026-11-15T14:00:00.000Z"
+                  },
+                  "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoiVVNFUiIsInN1YiI6IjIiLCJpYXQiOjE3NjMyMTUyMDAsImV4cCI6MTc2MzgyMDAwMH0.assinatura-de-exemplo"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "description": "E-mail ou senha incorretos.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "Unauthorized",
+                  "message": "E-mail ou senha inválidos"
+                }
+              }
+            }
+          },
+          "429": {
+            "$ref": "#/components/responses/MuitasRequisicoes"
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "operationId": "meuUsuario",
+        "summary": "Ver os dados de quem está logado",
+        "description": "Devolve a conta dona do token enviado. O front-end usa esta rota para recuperar a sessão ao recarregar a página.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dados da conta.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Usuario"
+                },
+                "example": {
+                  "id": 2,
+                  "name": "Ana Souza",
+                  "email": "ana@exemplo.com",
+                  "role": "USER",
+                  "city": "São Paulo",
+                  "bio": "Apaixonada por compostagem e bicicleta.",
+                  "avatarUrl": null,
+                  "createdAt": "2026-11-15T14:00:00.000Z"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "404": {
+            "description": "A conta do token foi excluída.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Usuário não existe mais"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categories": {
+      "get": {
+        "tags": [
+          "Categorias"
+        ],
+        "operationId": "listarCategorias",
+        "summary": "Listar as categorias",
+        "description": "Lista todas as categorias, sem paginação (são poucas). Use o `id` de uma categoria ao criar um post. A ordenação vem do banco de dados; se precisar de ordem alfabética perfeita em português (por exemplo, \"Água\" junto do \"A\"), ordene no front-end com `localeCompare(\"pt-BR\")`.",
+        "responses": {
+          "200": {
+            "description": "Lista de categorias.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Categoria"
+                  }
+                },
+                "example": [
+                  {
+                    "id": 4,
+                    "name": "Energia",
+                    "description": "Economia de energia e uso de fontes limpas"
+                  },
+                  {
+                    "id": 2,
+                    "name": "Hortas Urbanas",
+                    "description": "Hortas comunitárias, telhados verdes e plantas na varanda"
+                  }
+                ]
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Categorias"
+        ],
+        "operationId": "criarCategoria",
+        "summary": "Criar uma categoria (administrador)",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoriaEntrada"
+              },
+              "example": {
+                "name": "Educação Ambiental",
+                "description": "Palestras, oficinas e campanhas de conscientização."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Categoria criada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Categoria"
+                },
+                "example": {
+                  "id": 8,
+                  "name": "Educação Ambiental",
+                  "description": "Palestras, oficinas e campanhas de conscientização."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SemPermissao"
+          },
+          "409": {
+            "description": "Já existe uma categoria com este nome.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "Conflict",
+                  "message": "Categoria já existe"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categories/{id}": {
+      "get": {
+        "tags": [
+          "Categorias"
+        ],
+        "operationId": "buscarCategoria",
+        "summary": "Ver uma categoria",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) da categoria.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A categoria.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Categoria"
+                },
+                "example": {
+                  "id": 1,
+                  "name": "Reciclagem",
+                  "description": "Separação, reaproveitamento e reciclagem de materiais"
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "404": {
+            "$ref": "#/components/responses/NaoEncontrado"
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "Categorias"
+        ],
+        "operationId": "atualizarCategoria",
+        "summary": "Atualizar uma categoria (administrador)",
+        "description": "Substitui o nome e a descrição da categoria.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) da categoria.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CategoriaEntrada"
+              },
+              "example": {
+                "name": "Educação Ambiental e Cidadania",
+                "description": "Palestras, oficinas e campanhas de conscientização."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Categoria atualizada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Categoria"
+                },
+                "example": {
+                  "id": 8,
+                  "name": "Educação Ambiental e Cidadania",
+                  "description": "Palestras, oficinas e campanhas de conscientização."
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SemPermissao"
+          },
+          "404": {
+            "$ref": "#/components/responses/NaoEncontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Categorias"
+        ],
+        "operationId": "excluirCategoria",
+        "summary": "Excluir uma categoria (administrador)",
+        "description": "Só é possível excluir categorias que não tenham posts. Se houver posts, a API responde `409`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) da categoria.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Categoria excluída (sem corpo na resposta)."
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "403": {
+            "$ref": "#/components/responses/SemPermissao"
+          },
+          "404": {
+            "$ref": "#/components/responses/NaoEncontrado"
+          },
+          "409": {
+            "description": "A categoria está em uso por posts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "Conflict",
+                  "message": "Este registro está sendo usado por outros dados e não pode ser removido"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/posts": {
+      "get": {
+        "tags": [
+          "Posts"
+        ],
+        "operationId": "listarPosts",
+        "summary": "Listar posts (com busca e filtros)",
+        "description": "Lista os posts, do mais novo para o mais antigo, com paginação. Todos os filtros são opcionais e podem ser combinados. Se você enviar o token, o campo `likedByMe` indica se você já curtiu cada post; sem token, ele vem sempre `false`.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Número da página (começa em 1).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Itens por página (de 1 a 50).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "description": "Busca por texto dentro do conteúdo do post (sem diferenciar maiúsculas de minúsculas).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "compostagem"
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "description": "Filtra pela cidade (aceita parte do nome).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "São Paulo"
+          },
+          {
+            "name": "categoryId",
+            "in": "query",
+            "description": "Filtra por categoria (use o `id` de /api/categories).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "authorId",
+            "in": "query",
+            "description": "Filtra pelos posts de uma pessoa (use o `id` do usuário).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de posts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaDePosts"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": 1,
+                      "content": "Comecei a compostagem em casa: já são 3 kg de lixo orgânico a menos por semana! 🌱",
+                      "imageUrl": "https://exemplo.com/fotos/composteira.jpg",
+                      "city": "São Paulo",
+                      "createdAt": "2026-11-15T14:30:00.000Z",
+                      "updatedAt": "2026-11-15T14:30:00.000Z",
+                      "author": {
+                        "id": 2,
+                        "name": "Ana Souza",
+                        "avatarUrl": null
+                      },
+                      "category": {
+                        "id": 6,
+                        "name": "Redução de Resíduos"
+                      },
+                      "likesCount": 4,
+                      "commentsCount": 1,
+                      "likedByMe": false
+                    }
+                  ],
+                  "meta": {
+                    "page": 1,
+                    "limit": 10,
+                    "total": 1,
+                    "totalPages": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Posts"
+        ],
+        "operationId": "criarPost",
+        "summary": "Publicar um post",
+        "description": "Se `city` não for enviada, o post usa a cidade do perfil de quem publica. A `imageUrl` aceita apenas links `http://` ou `https://`.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostEntrada"
+              },
+              "example": {
+                "categoryId": 6,
+                "content": "Comecei a compostagem em casa: já são 3 kg de lixo orgânico a menos por semana! 🌱",
+                "imageUrl": "https://exemplo.com/fotos/composteira.jpg",
+                "city": "São Paulo"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Post publicado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Post"
+                },
+                "example": {
+                  "id": 1,
+                  "content": "Comecei a compostagem em casa: já são 3 kg de lixo orgânico a menos por semana! 🌱",
+                  "imageUrl": "https://exemplo.com/fotos/composteira.jpg",
+                  "city": "São Paulo",
+                  "createdAt": "2026-11-15T14:30:00.000Z",
+                  "updatedAt": "2026-11-15T14:30:00.000Z",
+                  "author": {
+                    "id": 2,
+                    "name": "Ana Souza",
+                    "avatarUrl": null
+                  },
+                  "category": {
+                    "id": 6,
+                    "name": "Redução de Resíduos"
+                  },
+                  "likesCount": 4,
+                  "commentsCount": 1,
+                  "likedByMe": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/posts/{id}": {
+      "get": {
+        "tags": [
+          "Posts"
+        ],
+        "operationId": "buscarPost",
+        "summary": "Ver um post",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do post.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "O post.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Post"
+                },
+                "example": {
+                  "id": 1,
+                  "content": "Comecei a compostagem em casa: já são 3 kg de lixo orgânico a menos por semana! 🌱",
+                  "imageUrl": "https://exemplo.com/fotos/composteira.jpg",
+                  "city": "São Paulo",
+                  "createdAt": "2026-11-15T14:30:00.000Z",
+                  "updatedAt": "2026-11-15T14:30:00.000Z",
+                  "author": {
+                    "id": 2,
+                    "name": "Ana Souza",
+                    "avatarUrl": null
+                  },
+                  "category": {
+                    "id": 6,
+                    "name": "Redução de Resíduos"
+                  },
+                  "likesCount": 4,
+                  "commentsCount": 1,
+                  "likedByMe": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "404": {
+            "description": "Post não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Post não encontrado"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Posts"
+        ],
+        "operationId": "atualizarPost",
+        "summary": "Editar um post",
+        "description": "Só o autor do post (ou um administrador) pode editar. Envie apenas os campos que quer mudar; `imageUrl` e `city` aceitam `null` para limpar o valor.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do post.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PostAtualizacao"
+              },
+              "example": {
+                "content": "Atualização: já são 5 kg a menos por semana! 🌱"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Post atualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Post"
+                },
+                "example": {
+                  "id": 1,
+                  "content": "Atualização: já são 5 kg a menos por semana! 🌱",
+                  "imageUrl": "https://exemplo.com/fotos/composteira.jpg",
+                  "city": "São Paulo",
+                  "createdAt": "2026-11-15T14:30:00.000Z",
+                  "updatedAt": "2026-11-15T14:30:00.000Z",
+                  "author": {
+                    "id": 2,
+                    "name": "Ana Souza",
+                    "avatarUrl": null
+                  },
+                  "category": {
+                    "id": 6,
+                    "name": "Redução de Resíduos"
+                  },
+                  "likesCount": 4,
+                  "commentsCount": 1,
+                  "likedByMe": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "403": {
+            "description": "O post é de outra pessoa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "Forbidden",
+                  "message": "Você só pode alterar os seus próprios posts"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Post não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Post não encontrado"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Posts"
+        ],
+        "operationId": "excluirPost",
+        "summary": "Excluir um post",
+        "description": "Só o autor (ou um administrador) pode excluir. As curtidas e os comentários do post são excluídos junto.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do post.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Post excluído (sem corpo na resposta)."
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "403": {
+            "description": "O post é de outra pessoa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "Forbidden",
+                  "message": "Você só pode alterar os seus próprios posts"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Post não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Post não encontrado"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/posts/{id}/like": {
+      "post": {
+        "tags": [
+          "Interações"
+        ],
+        "operationId": "curtirPost",
+        "summary": "Curtir ou descurtir um post",
+        "description": "Funciona como um interruptor: a primeira chamada curte (`liked: true`), a segunda remove a curtida (`liked: false`).",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do post.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado da curtida depois da chamada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespostaCurtida"
+                },
+                "example": {
+                  "liked": true,
+                  "likesCount": 5
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "404": {
+            "description": "Post não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Post não encontrado"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/posts/{id}/comments": {
+      "get": {
+        "tags": [
+          "Interações"
+        ],
+        "operationId": "listarComentarios",
+        "summary": "Listar os comentários de um post",
+        "description": "Do mais antigo para o mais novo, com paginação.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do post.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Número da página (começa em 1).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Itens por página (de 1 a 50).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de comentários.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaDeComentarios"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": 1,
+                      "postId": 1,
+                      "content": "Que inspirador! Vou começar a minha também.",
+                      "createdAt": "2026-11-15T15:00:00.000Z",
+                      "author": {
+                        "id": 3,
+                        "name": "Bruno Lima",
+                        "avatarUrl": null
+                      }
+                    }
+                  ],
+                  "meta": {
+                    "page": 1,
+                    "limit": 10,
+                    "total": 1,
+                    "totalPages": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "404": {
+            "description": "Post não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Post não encontrado"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Interações"
+        ],
+        "operationId": "comentarPost",
+        "summary": "Comentar em um post",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do post.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComentarioEntrada"
+              },
+              "example": {
+                "content": "Que inspirador! Vou começar a minha também."
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Comentário publicado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comentario"
+                },
+                "example": {
+                  "id": 1,
+                  "postId": 1,
+                  "content": "Que inspirador! Vou começar a minha também.",
+                  "createdAt": "2026-11-15T15:00:00.000Z",
+                  "author": {
+                    "id": 3,
+                    "name": "Bruno Lima",
+                    "avatarUrl": null
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "404": {
+            "description": "Post não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Post não encontrado"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/comments/{id}": {
+      "delete": {
+        "tags": [
+          "Interações"
+        ],
+        "operationId": "excluirComentario",
+        "summary": "Excluir um comentário",
+        "description": "Só quem escreveu o comentário (ou um administrador) pode excluir.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do comentário.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Comentário excluído (sem corpo na resposta)."
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "403": {
+            "description": "O comentário é de outra pessoa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "Forbidden",
+                  "message": "Você só pode excluir os seus próprios comentários"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Comentário não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Comentário não encontrado"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/me": {
+      "patch": {
+        "tags": [
+          "Usuários"
+        ],
+        "operationId": "atualizarMeuPerfil",
+        "summary": "Editar o meu perfil",
+        "description": "Envie apenas os campos que quer mudar. `city`, `bio` e `avatarUrl` aceitam `null` para limpar o valor. O e-mail e a senha não podem ser alterados por aqui.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PerfilAtualizacao"
+              },
+              "example": {
+                "city": "Curitiba",
+                "bio": "Agora moro em Curitiba e ando de bicicleta."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Perfil atualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Perfil"
+                },
+                "example": {
+                  "id": 2,
+                  "name": "Ana Souza",
+                  "city": "Curitiba",
+                  "bio": "Agora moro em Curitiba e ando de bicicleta.",
+                  "avatarUrl": null,
+                  "createdAt": "2026-11-15T14:00:00.000Z",
+                  "postsCount": 3,
+                  "followersCount": 5,
+                  "followingCount": 2,
+                  "followedByMe": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "tags": [
+          "Usuários"
+        ],
+        "operationId": "buscarPerfil",
+        "summary": "Ver o perfil público de uma pessoa",
+        "description": "Nunca mostra e-mail nem senha. Com o token enviado, `followedByMe` indica se você segue a pessoa.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do usuário.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "O perfil.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Perfil"
+                },
+                "example": {
+                  "id": 2,
+                  "name": "Ana Souza",
+                  "city": "São Paulo",
+                  "bio": "Apaixonada por compostagem e bicicleta.",
+                  "avatarUrl": null,
+                  "createdAt": "2026-11-15T14:00:00.000Z",
+                  "postsCount": 3,
+                  "followersCount": 5,
+                  "followingCount": 2,
+                  "followedByMe": false
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "404": {
+            "description": "Usuário não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Usuário não encontrado"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{id}/follow": {
+      "post": {
+        "tags": [
+          "Usuários"
+        ],
+        "operationId": "seguirUsuario",
+        "summary": "Seguir ou deixar de seguir uma pessoa",
+        "description": "Funciona como um interruptor: a primeira chamada segue (`following: true`), a segunda deixa de seguir. Não é possível seguir a si mesmo.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do usuário.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Estado depois da chamada.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RespostaSeguir"
+                },
+                "example": {
+                  "following": true,
+                  "followersCount": 6
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Tentou seguir a si mesmo ou o número é inválido.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "BadRequest",
+                  "message": "Você não pode seguir a si mesmo"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "404": {
+            "description": "Usuário não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Usuário não encontrado"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{id}/followers": {
+      "get": {
+        "tags": [
+          "Usuários"
+        ],
+        "operationId": "listarSeguidores",
+        "summary": "Listar quem segue a pessoa",
+        "description": "Os seguidores mais recentes primeiro, com paginação.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do usuário.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Número da página (começa em 1).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Itens por página (de 1 a 50).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de pessoas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaDeUsuarios"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": 3,
+                      "name": "Bruno Lima",
+                      "city": "Curitiba",
+                      "avatarUrl": null
+                    }
+                  ],
+                  "meta": {
+                    "page": 1,
+                    "limit": 10,
+                    "total": 1,
+                    "totalPages": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "404": {
+            "description": "Usuário não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Usuário não encontrado"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/users/{id}/following": {
+      "get": {
+        "tags": [
+          "Usuários"
+        ],
+        "operationId": "listarSeguindo",
+        "summary": "Listar quem a pessoa segue",
+        "description": "Quem foi seguido por último aparece primeiro, com paginação.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do usuário.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Número da página (começa em 1).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Itens por página (de 1 a 50).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de pessoas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaDeUsuarios"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": 3,
+                      "name": "Bruno Lima",
+                      "city": "Curitiba",
+                      "avatarUrl": null
+                    }
+                  ],
+                  "meta": {
+                    "page": 1,
+                    "limit": 10,
+                    "total": 1,
+                    "totalPages": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "404": {
+            "description": "Usuário não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Usuário não encontrado"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/feed": {
+      "get": {
+        "tags": [
+          "Feed"
+        ],
+        "operationId": "verFeed",
+        "summary": "Ver o meu feed",
+        "description": "Os posts das pessoas que você segue, do mais novo para o mais antigo. Se você ainda não segue ninguém, a lista vem vazia.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Número da página (começa em 1).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Itens por página (de 1 a 50).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Página de posts.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginaDePosts"
+                },
+                "example": {
+                  "data": [
+                    {
+                      "id": 1,
+                      "content": "Comecei a compostagem em casa: já são 3 kg de lixo orgânico a menos por semana! 🌱",
+                      "imageUrl": "https://exemplo.com/fotos/composteira.jpg",
+                      "city": "São Paulo",
+                      "createdAt": "2026-11-15T14:30:00.000Z",
+                      "updatedAt": "2026-11-15T14:30:00.000Z",
+                      "author": {
+                        "id": 2,
+                        "name": "Ana Souza",
+                        "avatarUrl": null
+                      },
+                      "category": {
+                        "id": 6,
+                        "name": "Redução de Resíduos"
+                      },
+                      "likesCount": 4,
+                      "commentsCount": 1,
+                      "likedByMe": false
+                    }
+                  ],
+                  "meta": {
+                    "page": 1,
+                    "limit": 10,
+                    "total": 1,
+                    "totalPages": 1
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          }
+        }
+      }
+    },
+    "/api/leaderboard": {
+      "get": {
+        "tags": [
+          "Ranking e estatísticas"
+        ],
+        "operationId": "verRanking",
+        "summary": "Ranking de quem mais inspira a comunidade",
+        "description": "Ordena as pessoas pelo total de curtidas recebidas nos próprios posts (empate: quem tem mais posts). Só aparece quem já publicou.",
+        "parameters": [
+          {
+            "name": "limit",
+            "in": "query",
+            "description": "Quantas pessoas mostrar (de 1 a 50).",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 10
+            }
+          },
+          {
+            "name": "city",
+            "in": "query",
+            "description": "Mostra só as pessoas de uma cidade (aceita parte do nome).",
+            "schema": {
+              "type": "string"
+            },
+            "example": "São Paulo"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Ranking.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemDoRanking"
+                  }
+                },
+                "example": [
+                  {
+                    "rank": 1,
+                    "id": 2,
+                    "name": "Ana Souza",
+                    "city": "São Paulo",
+                    "avatarUrl": null,
+                    "postsCount": 3,
+                    "likesReceived": 12
+                  }
+                ]
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          }
+        }
+      }
+    },
+    "/api/stats": {
+      "get": {
+        "tags": [
+          "Ranking e estatísticas"
+        ],
+        "operationId": "verEstatisticas",
+        "summary": "Números gerais da rede",
+        "description": "Totais públicos, pensados para a página inicial do site.",
+        "responses": {
+          "200": {
+            "description": "Estatísticas.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Estatisticas"
+                },
+                "example": {
+                  "users": 42,
+                  "posts": 130,
+                  "comments": 310,
+                  "likes": 980,
+                  "categories": 7,
+                  "cities": 9
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token JWT devolvido por `POST /api/auth/register` ou `POST /api/auth/login`. Cole apenas o token (sem a palavra \"Bearer\"); a página já envia o cabeçalho `Authorization: Bearer <token>`."
+      }
+    },
+    "responses": {
+      "DadosInvalidos": {
+        "description": "Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/ErroDeValidacao"
+            },
+            "example": {
+              "error": "ValidationError",
+              "message": "Dados da requisição inválidos",
+              "details": [
+                {
+                  "path": "password",
+                  "message": "Pequeno demais: esperava que o texto tivesse >= 8 caracteres"
+                }
+              ]
+            }
+          }
+        }
+      },
+      "NaoAutenticado": {
+        "description": "Faltou o token, ou ele é inválido ou expirou. Faça login de novo.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            },
+            "example": {
+              "error": "Unauthorized",
+              "message": "Autenticação necessária"
+            }
+          }
+        }
+      },
+      "SemPermissao": {
+        "description": "Você está logado, mas não tem permissão para esta ação.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            },
+            "example": {
+              "error": "Forbidden",
+              "message": "Você não tem permissão para fazer isso"
+            }
+          }
+        }
+      },
+      "NaoEncontrado": {
+        "description": "O recurso não existe.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            },
+            "example": {
+              "error": "NotFound",
+              "message": "Categoria não encontrada"
+            }
+          }
+        }
+      },
+      "MuitasRequisicoes": {
+        "description": "Limite de requisições excedido. Espere alguns minutos.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            },
+            "example": {
+              "error": "TooManyRequests",
+              "message": "Muitas requisições. Tente novamente mais tarde"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Erro": {
+        "type": "object",
+        "description": "Formato de todo erro da API.",
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Código fixo em inglês, para o código do front-end.",
+            "example": "NotFound"
+          },
+          "message": {
+            "type": "string",
+            "description": "Mensagem em português, para mostrar à pessoa.",
+            "example": "Post não encontrado"
+          }
+        }
+      },
+      "ErroDeValidacao": {
+        "type": "object",
+        "description": "Erro 400 de validação, com o detalhe campo a campo.",
+        "properties": {
+          "error": {
+            "type": "string",
+            "example": "ValidationError"
+          },
+          "message": {
+            "type": "string",
+            "example": "Dados da requisição inválidos"
+          },
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "description": "Nome do campo com problema.",
+                  "example": "email"
+                },
+                "message": {
+                  "type": "string",
+                  "description": "O que está errado, em português.",
+                  "example": "Formato do endereço de e-mail inválido"
+                }
+              }
+            }
+          }
+        }
+      },
+      "Usuario": {
+        "type": "object",
+        "description": "Conta de quem está logado (inclui o e-mail, que nunca aparece em perfis públicos).",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 2
+          },
+          "name": {
+            "type": "string",
+            "example": "Ana Souza"
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "example": "ana@exemplo.com"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "ADMIN"
+            ],
+            "description": "Perfil de acesso.",
+            "example": "USER"
+          },
+          "city": {
+            "type": "string",
+            "nullable": true,
+            "example": "São Paulo"
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true,
+            "example": "Apaixonada por compostagem e bicicleta."
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": null
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "CadastroEntrada": {
+        "type": "object",
+        "required": [
+          "name",
+          "email",
+          "password"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100,
+            "description": "Nome de exibição."
+          },
+          "email": {
+            "type": "string",
+            "format": "email",
+            "description": "E-mail único. É guardado em minúsculas."
+          },
+          "password": {
+            "type": "string",
+            "minLength": 8,
+            "maxLength": 72,
+            "description": "Senha (de 8 a 72 caracteres)."
+          },
+          "city": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Sua cidade (opcional). Vira a cidade padrão dos seus posts."
+          },
+          "bio": {
+            "type": "string",
+            "maxLength": 500,
+            "description": "Apresentação curta (opcional)."
+          }
+        }
+      },
+      "LoginEntrada": {
+        "type": "object",
+        "required": [
+          "email",
+          "password"
+        ],
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string"
+          }
+        }
+      },
+      "RespostaAuth": {
+        "type": "object",
+        "properties": {
+          "user": {
+            "$ref": "#/components/schemas/Usuario"
+          },
+          "token": {
+            "type": "string",
+            "description": "Token JWT (válido por 7 dias). Use no botão Autorizar."
+          }
+        }
+      },
+      "Categoria": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "name": {
+            "type": "string",
+            "example": "Reciclagem"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "example": "Separação, reaproveitamento e reciclagem de materiais"
+          }
+        }
+      },
+      "CategoriaEntrada": {
+        "type": "object",
+        "required": [
+          "name"
+        ],
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 60
+          },
+          "description": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 300
+          }
+        }
+      },
+      "Post": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1
+          },
+          "content": {
+            "type": "string",
+            "example": "Comecei a compostagem em casa! 🌱"
+          },
+          "imageUrl": {
+            "type": "string",
+            "nullable": true,
+            "example": "https://exemplo.com/fotos/composteira.jpg"
+          },
+          "city": {
+            "type": "string",
+            "nullable": true,
+            "example": "São Paulo"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "avatarUrl": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "category": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              }
+            }
+          },
+          "likesCount": {
+            "type": "integer",
+            "description": "Total de curtidas.",
+            "example": 4
+          },
+          "commentsCount": {
+            "type": "integer",
+            "description": "Total de comentários.",
+            "example": 1
+          },
+          "likedByMe": {
+            "type": "boolean",
+            "description": "Se quem pediu (com token) já curtiu. Sem token é sempre `false`."
+          }
+        }
+      },
+      "PostEntrada": {
+        "type": "object",
+        "required": [
+          "categoryId",
+          "content"
+        ],
+        "properties": {
+          "categoryId": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Número (id) de uma categoria existente."
+          },
+          "content": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1000,
+            "description": "O texto do post."
+          },
+          "imageUrl": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 500,
+            "description": "Link de uma imagem (http ou https). Opcional."
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "description": "Cidade da ação. Se omitida, usa a cidade do seu perfil."
+          }
+        }
+      },
+      "PostAtualizacao": {
+        "type": "object",
+        "minProperties": 1,
+        "description": "Envie pelo menos um campo.",
+        "properties": {
+          "categoryId": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "content": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 1000
+          },
+          "imageUrl": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 500,
+            "nullable": true
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true
+          }
+        }
+      },
+      "Comentario": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "postId": {
+            "type": "integer"
+          },
+          "content": {
+            "type": "string"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "author": {
+            "type": "object",
+            "properties": {
+              "id": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "avatarUrl": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          }
+        }
+      },
+      "ComentarioEntrada": {
+        "type": "object",
+        "required": [
+          "content"
+        ],
+        "properties": {
+          "content": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          }
+        }
+      },
+      "RespostaCurtida": {
+        "type": "object",
+        "properties": {
+          "liked": {
+            "type": "boolean",
+            "description": "`true` se agora o post está curtido por você."
+          },
+          "likesCount": {
+            "type": "integer",
+            "description": "Total de curtidas do post."
+          }
+        }
+      },
+      "Perfil": {
+        "type": "object",
+        "description": "Perfil público (sem e-mail).",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "bio": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "postsCount": {
+            "type": "integer"
+          },
+          "followersCount": {
+            "type": "integer"
+          },
+          "followingCount": {
+            "type": "integer"
+          },
+          "followedByMe": {
+            "type": "boolean",
+            "description": "Se quem pediu (com token) segue esta pessoa."
+          }
+        }
+      },
+      "PerfilAtualizacao": {
+        "type": "object",
+        "minProperties": 1,
+        "description": "Envie pelo menos um campo.",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 100
+          },
+          "city": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100,
+            "nullable": true
+          },
+          "bio": {
+            "type": "string",
+            "maxLength": 500,
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "format": "uri",
+            "maxLength": 500,
+            "nullable": true,
+            "description": "Link http ou https."
+          }
+        }
+      },
+      "RespostaSeguir": {
+        "type": "object",
+        "properties": {
+          "following": {
+            "type": "boolean",
+            "description": "`true` se agora você segue a pessoa."
+          },
+          "followersCount": {
+            "type": "integer",
+            "description": "Total de seguidores da pessoa."
+          }
+        }
+      },
+      "UsuarioResumo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "ItemDoRanking": {
+        "type": "object",
+        "properties": {
+          "rank": {
+            "type": "integer",
+            "description": "Posição no ranking (1 = primeiro)."
+          },
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string",
+            "nullable": true
+          },
+          "avatarUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "postsCount": {
+            "type": "integer"
+          },
+          "likesReceived": {
+            "type": "integer"
+          }
+        }
+      },
+      "Estatisticas": {
+        "type": "object",
+        "properties": {
+          "users": {
+            "type": "integer",
+            "description": "Pessoas cadastradas."
+          },
+          "posts": {
+            "type": "integer"
+          },
+          "comments": {
+            "type": "integer"
+          },
+          "likes": {
+            "type": "integer"
+          },
+          "categories": {
+            "type": "integer"
+          },
+          "cities": {
+            "type": "integer",
+            "description": "Cidades diferentes com posts."
+          }
+        }
+      },
+      "Paginacao": {
+        "type": "object",
+        "properties": {
+          "page": {
+            "type": "integer",
+            "example": 1
+          },
+          "limit": {
+            "type": "integer",
+            "example": 10
+          },
+          "total": {
+            "type": "integer",
+            "description": "Total de itens em todas as páginas.",
+            "example": 1
+          },
+          "totalPages": {
+            "type": "integer",
+            "example": 1
+          }
+        }
+      },
+      "PaginaDePosts": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Post"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Paginacao"
+          }
+        }
+      },
+      "PaginaDeComentarios": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Comentario"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Paginacao"
+          }
+        }
+      },
+      "PaginaDeUsuarios": {
+        "type": "object",
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/UsuarioResumo"
+            }
+          },
+          "meta": {
+            "$ref": "#/components/schemas/Paginacao"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,2180 @@
+{
+  "info": {
+    "name": "EcoMedia API",
+    "description": "Coleção de testes da **API EcoMedia**, a rede social de ações sustentáveis (ODS 11 da ONU).\n\n## Como usar\n\n1. A variável `baseUrl` (aba **Variables** da coleção) aponta para a API. Por padrão é `http://localhost:3333`; troque pelo endereço da API publicada, se for o caso.\n2. Para rodar tudo de uma vez, clique com o botão direito na coleção → **Run collection**. As requisições estão em ordem e cada uma tem testes automáticos.\n3. Para testar uma de cada vez, comece por **Autenticação → Criar uma conta**: o token é guardado sozinho e as próximas requisições já o usam.\n\nAs variáveis `token`, `adminToken`, `postId` e outras são preenchidas automaticamente pelas próprias requisições.\nAs requisições com \"(erro 4xx)\" no nome existem de propósito, para mostrar as mensagens de erro em português.\n\nA documentação completa está no Swagger: `{{baseUrl}}/api-docs`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3333"
+    },
+    {
+      "key": "senhaUsuario",
+      "value": "Senha12345"
+    },
+    {
+      "key": "adminEmail",
+      "value": "admin@ecomedia.dev"
+    },
+    {
+      "key": "adminPassword",
+      "value": "Admin12345"
+    },
+    {
+      "key": "token",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "tokenSegunda",
+      "value": ""
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Sistema",
+      "description": "Rotas para conferir se a API está no ar.",
+      "item": [
+        {
+          "name": "Informações da API",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Informa o nome da API', () => pm.expect(j.name).to.eql('EcoMedia API'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": []
+            },
+            "description": "**GET /**\n\nDevolve o nome da API e os caminhos da documentação e da verificação de saúde.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Informações básicas."
+          },
+          "response": []
+        },
+        {
+          "name": "Verificar se a API está no ar",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('A API está no ar', () => pm.expect(j.status).to.eql('ok'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "health"
+              ]
+            },
+            "description": "**GET /api/health**\n\nNão consulta o banco e não conta no limite de requisições. Útil para monitoramento e para a hospedagem.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: A API está funcionando."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Autenticação",
+      "description": "Cadastro, login e dados de quem está logado.",
+      "item": [
+        {
+          "name": "Criar uma conta",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('emailUsuario', 'ana.' + Date.now() + '@exemplo.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('A conta nasce como USER', () => pm.expect(j.user.role).to.eql('USER'));",
+                  "pm.test('Devolve um token', () => pm.expect(j.token).to.be.a('string').and.not.empty);",
+                  "pm.test('Nunca devolve a senha', () => pm.expect(JSON.stringify(j)).to.not.include('password'));",
+                  "pm.collectionVariables.set('token', j.token);",
+                  "pm.collectionVariables.set('userId', j.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "**POST /api/auth/register**\n\nGera um e-mail novo a cada execução e guarda o token e o id nas variáveis `token` e `userId`.\n\nCadastra uma pessoa nova e já devolve o token de acesso, então não é preciso fazer login em seguida. A conta sempre nasce com o perfil `USER`. A senha é guardada com hash (bcrypt) e nunca é devolvida.\n\nResposta esperada neste teste: **201**.\n\nRespostas possíveis desta rota:\n\n- `201`: Conta criada.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `409`: Já existe uma conta com este e-mail.\n- `429`: Limite de requisições excedido. Espere alguns minutos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ana Souza\",\n  \"email\": \"{{emailUsuario}}\",\n  \"password\": \"{{senhaUsuario}}\",\n  \"city\": \"São Paulo\",\n  \"bio\": \"Apaixonada por compostagem e bicicleta.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar conta com o mesmo e-mail (erro 409)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 409', () => pm.response.to.have.status(409));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Mensagem em português', () => pm.expect(j.message).to.eql('E-mail já cadastrado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "**POST /api/auth/register**\n\nMostra a mensagem de erro em português quando o e-mail já existe.\n\nCadastra uma pessoa nova e já devolve o token de acesso, então não é preciso fazer login em seguida. A conta sempre nasce com o perfil `USER`. A senha é guardada com hash (bcrypt) e nunca é devolvida.\n\nResposta esperada neste teste: **409**.\n\nRespostas possíveis desta rota:\n\n- `201`: Conta criada.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `409`: Já existe uma conta com este e-mail.\n- `429`: Limite de requisições excedido. Espere alguns minutos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ana Souza\",\n  \"email\": \"{{emailUsuario}}\",\n  \"password\": \"{{senhaUsuario}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar conta com dados inválidos (erro 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('É um erro de validação', () => pm.expect(j.error).to.eql('ValidationError'));",
+                  "pm.test('Aponta os 3 campos errados', () => pm.expect(j.details.map(d => d.path).sort()).to.eql(['email', 'name', 'password']));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "**POST /api/auth/register**\n\nMostra a lista `details`, que indica qual campo está errado e por quê.\n\nCadastra uma pessoa nova e já devolve o token de acesso, então não é preciso fazer login em seguida. A conta sempre nasce com o perfil `USER`. A senha é guardada com hash (bcrypt) e nunca é devolvida.\n\nResposta esperada neste teste: **400**.\n\nRespostas possíveis desta rota:\n\n- `201`: Conta criada.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `409`: Já existe uma conta com este e-mail.\n- `429`: Limite de requisições excedido. Espere alguns minutos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"A\",\n  \"email\": \"isto-nao-e-um-email\",\n  \"password\": \"123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Entrar (login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Devolve um token', () => pm.expect(j.token).to.be.a('string').and.not.empty);",
+                  "pm.collectionVariables.set('token', j.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "**POST /api/auth/login**\n\nConfere e-mail e senha e devolve o token JWT. Por segurança, a mensagem de erro é a mesma quando o e-mail não existe ou a senha está errada.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Login feito.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: E-mail ou senha incorretos.\n- `429`: Limite de requisições excedido. Espere alguns minutos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailUsuario}}\",\n  \"password\": \"{{senhaUsuario}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Entrar com senha errada (erro 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Mensagem em português', () => pm.expect(j.message).to.eql('E-mail ou senha inválidos'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "**POST /api/auth/login**\n\nConfere e-mail e senha e devolve o token JWT. Por segurança, a mensagem de erro é a mesma quando o e-mail não existe ou a senha está errada.\n\nResposta esperada neste teste: **401**.\n\nRespostas possíveis desta rota:\n\n- `200`: Login feito.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: E-mail ou senha incorretos.\n- `429`: Limite de requisições excedido. Espere alguns minutos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{emailUsuario}}\",\n  \"password\": \"senha-errada\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Entrar como administrador",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('É administrador', () => pm.expect(j.user.role).to.eql('ADMIN'));",
+                  "pm.collectionVariables.set('adminToken', j.token);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "**POST /api/auth/login**\n\nUsa o administrador criado pelo comando de seed. Se você mudou `ADMIN_EMAIL` ou `ADMIN_PASSWORD` no `.env`, ajuste as variáveis `adminEmail` e `adminPassword` da coleção.\n\nConfere e-mail e senha e devolve o token JWT. Por segurança, a mensagem de erro é a mesma quando o e-mail não existe ou a senha está errada.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Login feito.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: E-mail ou senha incorretos.\n- `429`: Limite de requisições excedido. Espere alguns minutos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{adminEmail}}\",\n  \"password\": \"{{adminPassword}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar a conta de uma segunda pessoa",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('emailSegunda', 'bruno.' + Date.now() + '@exemplo.com');"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('tokenSegunda', j.token);",
+                  "pm.collectionVariables.set('userIdSegunda', j.user.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "**POST /api/auth/register**\n\nPara testar permissões e \"seguir\", precisamos de outra pessoa. Guarda o token e o id dela em `tokenSegunda` e `userIdSegunda`.\n\nCadastra uma pessoa nova e já devolve o token de acesso, então não é preciso fazer login em seguida. A conta sempre nasce com o perfil `USER`. A senha é guardada com hash (bcrypt) e nunca é devolvida.\n\nResposta esperada neste teste: **201**.\n\nRespostas possíveis desta rota:\n\n- `201`: Conta criada.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `409`: Já existe uma conta com este e-mail.\n- `429`: Limite de requisições excedido. Espere alguns minutos.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Bruno Lima\",\n  \"email\": \"{{emailSegunda}}\",\n  \"password\": \"{{senhaUsuario}}\",\n  \"city\": \"Curitiba\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ver quem está logado",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('É a conta que acabei de criar', () => pm.expect(j.email).to.eql(String(pm.collectionVariables.get('emailUsuario'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "**GET /api/auth/me**\n\nDevolve a conta dona do token enviado. O front-end usa esta rota para recuperar a sessão ao recarregar a página.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Dados da conta.\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `404`: A conta do token foi excluída."
+          },
+          "response": []
+        },
+        {
+          "name": "Ver quem está logado sem token (erro 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Mensagem em português', () => pm.expect(j.message).to.eql('Autenticação necessária'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "**GET /api/auth/me**\n\nDevolve a conta dona do token enviado. O front-end usa esta rota para recuperar a sessão ao recarregar a página.\n\nResposta esperada neste teste: **401**.\n\nRespostas possíveis desta rota:\n\n- `200`: Dados da conta.\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `404`: A conta do token foi excluída."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Categorias",
+      "description": "Tipos de ação sustentável (Reciclagem, Energia, Água...). A leitura é pública; criar, editar e excluir é só para administradores.",
+      "item": [
+        {
+          "name": "Listar as categorias",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Há categorias (o seed cria 7)', () => pm.expect(j.length).to.be.at.least(7));",
+                  "pm.collectionVariables.set('categoryId', j[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            },
+            "description": "**GET /api/categories**\n\nGuarda o `id` da primeira categoria na variável `categoryId`, usada para criar posts.\n\nLista todas as categorias, sem paginação (são poucas). Use o `id` de uma categoria ao criar um post. A ordenação vem do banco de dados; se precisar de ordem alfabética perfeita em português (por exemplo, \"Água\" junto do \"A\"), ordene no front-end com `localeCompare(\"pt-BR\")`.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Lista de categorias."
+          },
+          "response": []
+        },
+        {
+          "name": "Ver uma categoria",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('É a categoria pedida', () => pm.expect(String(j.id)).to.eql(String(pm.collectionVariables.get('categoryId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoryId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{categoryId}}"
+              ]
+            },
+            "description": "**GET /api/categories/{id}**\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: A categoria.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `404`: O recurso não existe."
+          },
+          "response": []
+        },
+        {
+          "name": "Criar categoria sem ser administrador (erro 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Mensagem em português', () => pm.expect(j.message).to.eql('Você não tem permissão para fazer isso'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            },
+            "description": "**POST /api/categories**\n\nResposta esperada neste teste: **403**.\n\nRespostas possíveis desta rota:\n\n- `201`: Categoria criada.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `403`: Você está logado, mas não tem permissão para esta ação.\n- `409`: Já existe uma categoria com este nome.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Categoria que não deve ser criada\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Criar categoria (administrador)",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('nomeCategoriaNova', 'Educação Ambiental ' + Date.now());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.collectionVariables.set('categoriaNovaId', j.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories"
+              ]
+            },
+            "description": "**POST /api/categories**\n\nResposta esperada neste teste: **201**.\n\nRespostas possíveis desta rota:\n\n- `201`: Categoria criada.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `403`: Você está logado, mas não tem permissão para esta ação.\n- `409`: Já existe uma categoria com este nome.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{nomeCategoriaNova}}\",\n  \"description\": \"Palestras, oficinas e campanhas de conscientização.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Atualizar categoria (administrador)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('O nome mudou', () => pm.expect(j.name).to.include('e Cidadania'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoriaNovaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{categoriaNovaId}}"
+              ]
+            },
+            "description": "**PUT /api/categories/{id}**\n\nSubstitui o nome e a descrição da categoria.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Categoria atualizada.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `403`: Você está logado, mas não tem permissão para esta ação.\n- `404`: O recurso não existe.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"{{nomeCategoriaNova}} e Cidadania\",\n  \"description\": \"Palestras, oficinas e campanhas de conscientização.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Excluir categoria (administrador)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/categories/{{categoriaNovaId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "categories",
+                "{{categoriaNovaId}}"
+              ]
+            },
+            "description": "**DELETE /api/categories/{id}**\n\nSó é possível excluir categorias que não tenham posts. Se houver posts, a API responde `409`.\n\nResposta esperada neste teste: **204**.\n\nRespostas possíveis desta rota:\n\n- `204`: Categoria excluída (sem corpo na resposta).\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `403`: Você está logado, mas não tem permissão para esta ação.\n- `404`: O recurso não existe.\n- `409`: A categoria está em uso por posts."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Posts",
+      "description": "Publicações de ações sustentáveis. A leitura é pública; escrever exige login.",
+      "item": [
+        {
+          "name": "Publicar um post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('O autor sou eu', () => pm.expect(String(j.author.id)).to.eql(String(pm.collectionVariables.get('userId'))));",
+                  "pm.test('Começa com 0 curtidas', () => pm.expect(j.likesCount).to.eql(0));",
+                  "pm.collectionVariables.set('postId', j.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts"
+              ]
+            },
+            "description": "**POST /api/posts**\n\nGuarda o id do post na variável `postId`, usada pelas próximas requisições.\n\nSe `city` não for enviada, o post usa a cidade do perfil de quem publica. A `imageUrl` aceita apenas links `http://` ou `https://`.\n\nResposta esperada neste teste: **201**.\n\nRespostas possíveis desta rota:\n\n- `201`: Post publicado.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"categoryId\": {{categoryId}},\n  \"content\": \"Comecei a compostagem em casa: já são 3 kg de lixo orgânico a menos por semana! 🌱\",\n  \"city\": \"São Paulo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Publicar sem estar logado (erro 401)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Mensagem em português', () => pm.expect(j.message).to.eql('Autenticação necessária'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts"
+              ]
+            },
+            "description": "**POST /api/posts**\n\nSe `city` não for enviada, o post usa a cidade do perfil de quem publica. A `imageUrl` aceita apenas links `http://` ou `https://`.\n\nResposta esperada neste teste: **401**.\n\nRespostas possíveis desta rota:\n\n- `201`: Post publicado.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"categoryId\": {{categoryId}}, \"content\": \"Este post não deve ser criado\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar posts (com busca e filtros)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Traz a paginação', () => pm.expect(j.meta).to.have.keys('page', 'limit', 'total', 'totalPages'));",
+                  "pm.test('Encontra o post que acabei de criar', () => pm.expect(j.data.map(p => String(p.id))).to.include(String(pm.collectionVariables.get('postId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts?page=1&limit=10&q=compostagem",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Número da página (começa em 1).",
+                  "disabled": false
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Itens por página (de 1 a 50).",
+                  "disabled": false
+                },
+                {
+                  "key": "q",
+                  "value": "compostagem",
+                  "description": "Busca por texto dentro do conteúdo do post (sem diferenciar maiúsculas de minúsculas).",
+                  "disabled": false
+                },
+                {
+                  "key": "city",
+                  "value": "São Paulo",
+                  "description": "Filtra pela cidade (aceita parte do nome).",
+                  "disabled": true
+                },
+                {
+                  "key": "categoryId",
+                  "value": "",
+                  "description": "Filtra por categoria (use o `id` de /api/categories).",
+                  "disabled": true
+                },
+                {
+                  "key": "authorId",
+                  "value": "",
+                  "description": "Filtra pelos posts de uma pessoa (use o `id` do usuário).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "**GET /api/posts**\n\nOs filtros `city`, `categoryId` e `authorId` também existem: marque-os na aba Params para testar.\n\nLista os posts, do mais novo para o mais antigo, com paginação. Todos os filtros são opcionais e podem ser combinados. Se você enviar o token, o campo `likedByMe` indica se você já curtiu cada post; sem token, ele vem sempre `false`.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Página de posts.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Ver um post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('É o post pedido', () => pm.expect(String(j.id)).to.eql(String(pm.collectionVariables.get('postId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts",
+                "{{postId}}"
+              ]
+            },
+            "description": "**GET /api/posts/{id}**\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: O post.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `404`: Post não encontrado."
+          },
+          "response": []
+        },
+        {
+          "name": "Ver um post que não existe (erro 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Mensagem em português', () => pm.expect(j.message).to.eql('Post não encontrado'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts",
+                "999999"
+              ]
+            },
+            "description": "**GET /api/posts/{id}**\n\nResposta esperada neste teste: **404**.\n\nRespostas possíveis desta rota:\n\n- `200`: O post.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `404`: Post não encontrado."
+          },
+          "response": []
+        },
+        {
+          "name": "Editar um post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('O texto mudou', () => pm.expect(j.content).to.include('5 kg'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts",
+                "{{postId}}"
+              ]
+            },
+            "description": "**PATCH /api/posts/{id}**\n\nSó o autor do post (ou um administrador) pode editar. Envie apenas os campos que quer mudar; `imageUrl` e `city` aceitam `null` para limpar o valor.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Post atualizado.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `403`: O post é de outra pessoa.\n- `404`: Post não encontrado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Atualização: já são 5 kg a menos por semana! 🌱\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Editar o post de outra pessoa (erro 403)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 403', () => pm.response.to.have.status(403));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Mensagem em português', () => pm.expect(j.message).to.eql('Você só pode alterar os seus próprios posts'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenSegunda}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts",
+                "{{postId}}"
+              ]
+            },
+            "description": "**PATCH /api/posts/{id}**\n\nSó o autor do post (ou um administrador) pode editar. Envie apenas os campos que quer mudar; `imageUrl` e `city` aceitam `null` para limpar o valor.\n\nResposta esperada neste teste: **403**.\n\nRespostas possíveis desta rota:\n\n- `200`: Post atualizado.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `403`: O post é de outra pessoa.\n- `404`: Post não encontrado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Tentando editar o post de outra pessoa\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Moderação: administrador edita o post de outra pessoa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts",
+                "{{postId}}"
+              ]
+            },
+            "description": "**PATCH /api/posts/{id}**\n\nAdministradores podem moderar qualquer post, por isso aqui a resposta é 200.\n\nSó o autor do post (ou um administrador) pode editar. Envie apenas os campos que quer mudar; `imageUrl` e `city` aceitam `null` para limpar o valor.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Post atualizado.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `403`: O post é de outra pessoa.\n- `404`: Post não encontrado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"city\": \"São Paulo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Excluir um post",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "  url: pm.variables.get('baseUrl') + '/api/posts', method: 'POST',",
+                  "  header: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + pm.collectionVariables.get('token') },",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ categoryId: Number(pm.collectionVariables.get('categoryId')), content: 'Post temporário para o teste de exclusão' }) },",
+                  "}, (erro, resposta) => pm.collectionVariables.set('postIdExcluir', resposta.json().id));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postIdExcluir}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts",
+                "{{postIdExcluir}}"
+              ]
+            },
+            "description": "**DELETE /api/posts/{id}**\n\nAntes de enviar, o Postman cria um post temporário só para este teste, para não apagar o `postId` que as outras requisições usam.\n\nSó o autor (ou um administrador) pode excluir. As curtidas e os comentários do post são excluídos junto.\n\nResposta esperada neste teste: **204**.\n\nRespostas possíveis desta rota:\n\n- `204`: Post excluído (sem corpo na resposta).\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `403`: O post é de outra pessoa.\n- `404`: Post não encontrado."
+          },
+          "response": []
+        },
+        {
+          "name": "Conferir que o post excluído sumiu (erro 404)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 404', () => pm.response.to.have.status(404));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postIdExcluir}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts",
+                "{{postIdExcluir}}"
+              ]
+            },
+            "description": "**GET /api/posts/{id}**\n\nResposta esperada neste teste: **404**.\n\nRespostas possíveis desta rota:\n\n- `200`: O post.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `404`: Post não encontrado."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Interações",
+      "description": "Curtidas e comentários nos posts.",
+      "item": [
+        {
+          "name": "Curtir um post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Agora está curtido', () => pm.expect(j.liked).to.eql(true));",
+                  "pm.test('Tem 1 curtida', () => pm.expect(j.likesCount).to.eql(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts",
+                "{{postId}}",
+                "like"
+              ]
+            },
+            "description": "**POST /api/posts/{id}/like**\n\nFunciona como um interruptor: a primeira chamada curte (`liked: true`), a segunda remove a curtida (`liked: false`).\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Estado da curtida depois da chamada.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `404`: Post não encontrado."
+          },
+          "response": []
+        },
+        {
+          "name": "Curtir de novo (remove a curtida)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Descurtiu', () => pm.expect(j.liked).to.eql(false));",
+                  "pm.test('Voltou a 0 curtidas', () => pm.expect(j.likesCount).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/like",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts",
+                "{{postId}}",
+                "like"
+              ]
+            },
+            "description": "**POST /api/posts/{id}/like**\n\nFunciona como um interruptor: a primeira chamada curte (`liked: true`), a segunda remove a curtida (`liked: false`).\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Estado da curtida depois da chamada.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `404`: Post não encontrado."
+          },
+          "response": []
+        },
+        {
+          "name": "Comentar em um post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('O comentário é meu', () => pm.expect(String(j.author.id)).to.eql(String(pm.collectionVariables.get('userId'))));",
+                  "pm.collectionVariables.set('comentarioId', j.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts",
+                "{{postId}}",
+                "comments"
+              ]
+            },
+            "description": "**POST /api/posts/{id}/comments**\n\nResposta esperada neste teste: **201**.\n\nRespostas possíveis desta rota:\n\n- `201`: Comentário publicado.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `404`: Post não encontrado.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"content\": \"Que inspirador! Vou começar a minha também.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Listar os comentários de um post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Mostra o comentário', () => pm.expect(j.data.length).to.eql(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts/{{postId}}/comments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts",
+                "{{postId}}",
+                "comments"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Número da página (começa em 1).",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Itens por página (de 1 a 50).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "**GET /api/posts/{id}/comments**\n\nDo mais antigo para o mais novo, com paginação.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Página de comentários.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `404`: Post não encontrado."
+          },
+          "response": []
+        },
+        {
+          "name": "Excluir um comentário",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 204', () => pm.response.to.have.status(204));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/comments/{{comentarioId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "comments",
+                "{{comentarioId}}"
+              ]
+            },
+            "description": "**DELETE /api/comments/{id}**\n\nSó quem escreveu o comentário (ou um administrador) pode excluir.\n\nResposta esperada neste teste: **204**.\n\nRespostas possíveis desta rota:\n\n- `204`: Comentário excluído (sem corpo na resposta).\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `403`: O comentário é de outra pessoa.\n- `404`: Comentário não encontrado."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Usuários",
+      "description": "Perfis públicos, edição do próprio perfil e seguir/deixar de seguir.",
+      "item": [
+        {
+          "name": "Editar o meu perfil",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('A cidade mudou', () => pm.expect(j.city).to.eql('Campinas'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "me"
+              ]
+            },
+            "description": "**PATCH /api/users/me**\n\nEnvie apenas os campos que quer mudar. `city`, `bio` e `avatarUrl` aceitam `null` para limpar o valor. O e-mail e a senha não podem ser alterados por aqui.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Perfil atualizado.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"city\": \"Campinas\",\n  \"bio\": \"Agora moro em Campinas e ando de bicicleta.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ver o perfil público de uma pessoa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Não mostra o e-mail', () => pm.expect(j).to.not.have.property('email'));",
+                  "pm.test('Tem contadores', () => pm.expect(j).to.include.keys('postsCount', 'followersCount', 'followingCount'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userIdSegunda}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userIdSegunda}}"
+              ]
+            },
+            "description": "**GET /api/users/{id}**\n\nNunca mostra e-mail nem senha. Com o token enviado, `followedByMe` indica se você segue a pessoa.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: O perfil.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `404`: Usuário não encontrado."
+          },
+          "response": []
+        },
+        {
+          "name": "Seguir a segunda pessoa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Agora sigo', () => pm.expect(j.following).to.eql(true));",
+                  "pm.test('Ela tem 1 seguidor', () => pm.expect(j.followersCount).to.eql(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userIdSegunda}}/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userIdSegunda}}",
+                "follow"
+              ]
+            },
+            "description": "**POST /api/users/{id}/follow**\n\nFunciona como um interruptor: a primeira chamada segue (`following: true`), a segunda deixa de seguir. Não é possível seguir a si mesmo.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Estado depois da chamada.\n- `400`: Tentou seguir a si mesmo ou o número é inválido.\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `404`: Usuário não encontrado."
+          },
+          "response": []
+        },
+        {
+          "name": "Seguir a mim mesmo (erro 400)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 400', () => pm.response.to.have.status(400));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Mensagem em português', () => pm.expect(j.message).to.eql('Você não pode seguir a si mesmo'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/follow",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}",
+                "follow"
+              ]
+            },
+            "description": "**POST /api/users/{id}/follow**\n\nFunciona como um interruptor: a primeira chamada segue (`following: true`), a segunda deixa de seguir. Não é possível seguir a si mesmo.\n\nResposta esperada neste teste: **400**.\n\nRespostas possíveis desta rota:\n\n- `200`: Estado depois da chamada.\n- `400`: Tentou seguir a si mesmo ou o número é inválido.\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.\n- `404`: Usuário não encontrado."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar quem segue a pessoa",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Eu apareço entre os seguidores', () => pm.expect(j.data.map(u => String(u.id))).to.include(String(pm.collectionVariables.get('userId'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userIdSegunda}}/followers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userIdSegunda}}",
+                "followers"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Número da página (começa em 1).",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Itens por página (de 1 a 50).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "**GET /api/users/{id}/followers**\n\nOs seguidores mais recentes primeiro, com paginação.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Página de pessoas.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `404`: Usuário não encontrado."
+          },
+          "response": []
+        },
+        {
+          "name": "Listar quem a pessoa segue",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('A segunda pessoa aparece em quem sigo', () => pm.expect(j.data.map(u => String(u.id))).to.include(String(pm.collectionVariables.get('userIdSegunda'))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/users/{{userId}}/following",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "users",
+                "{{userId}}",
+                "following"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Número da página (começa em 1).",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Itens por página (de 1 a 50).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "**GET /api/users/{id}/following**\n\nQuem foi seguido por último aparece primeiro, com paginação.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Página de pessoas.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `404`: Usuário não encontrado."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Feed",
+      "description": "Linha do tempo com os posts de quem você segue.",
+      "item": [
+        {
+          "name": "A segunda pessoa publica um post",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{tokenSegunda}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/posts",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "posts"
+              ]
+            },
+            "description": "**POST /api/posts**\n\nPara o feed ter o que mostrar, quem eu sigo precisa publicar.\n\nSe `city` não for enviada, o post usa a cidade do perfil de quem publica. A `imageUrl` aceita apenas links `http://` ou `https://`.\n\nResposta esperada neste teste: **201**.\n\nRespostas possíveis desta rota:\n\n- `201`: Post publicado.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo.",
+            "body": {
+              "mode": "raw",
+              "raw": "{ \"categoryId\": {{categoryId}}, \"content\": \"Troquei o carro pela bicicleta no trajeto até o trabalho! 🚲\", \"city\": \"Curitiba\" }",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Ver o meu feed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('O feed mostra o post de quem eu sigo', () => pm.expect(j.data.length).to.be.at.least(1));",
+                  "pm.test('Todos os posts são da pessoa que sigo', () => j.data.forEach(p => pm.expect(String(p.author.id)).to.eql(String(pm.collectionVariables.get('userIdSegunda')))));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/feed",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "feed"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Número da página (começa em 1).",
+                  "disabled": true
+                },
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Itens por página (de 1 a 50).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "**GET /api/feed**\n\nOs posts das pessoas que você segue, do mais novo para o mais antigo. Se você ainda não segue ninguém, a lista vem vazia.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Página de posts.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`).\n- `401`: Faltou o token, ou ele é inválido ou expirou. Faça login de novo."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Ranking e estatísticas",
+      "description": "Quem mais inspira a comunidade e os números gerais da rede.",
+      "item": [
+        {
+          "name": "Ranking de quem mais inspira a comunidade",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('É uma lista com posição (rank)', () => { pm.expect(j).to.be.an('array'); if (j.length) pm.expect(j[0].rank).to.eql(1); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/leaderboard?limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "leaderboard"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "10",
+                  "description": "Quantas pessoas mostrar (de 1 a 50).",
+                  "disabled": false
+                },
+                {
+                  "key": "city",
+                  "value": "São Paulo",
+                  "description": "Mostra só as pessoas de uma cidade (aceita parte do nome).",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "**GET /api/leaderboard**\n\nOrdena as pessoas pelo total de curtidas recebidas nos próprios posts (empate: quem tem mais posts). Só aparece quem já publicou.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Ranking.\n- `400`: Dados inválidos. A lista `details` diz qual campo está errado (`path`) e o motivo (`message`)."
+          },
+          "response": []
+        },
+        {
+          "name": "Números gerais da rede",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                  "pm.test('A resposta é JSON', () => pm.response.to.be.json);",
+                  "const j = pm.response.json();",
+                  "pm.test('Traz os totais', () => pm.expect(j).to.have.keys('users', 'posts', 'comments', 'likes', 'categories', 'cities'));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "auth": {
+              "type": "noauth"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/stats",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "stats"
+              ]
+            },
+            "description": "**GET /api/stats**\n\nTotais públicos, pensados para a página inicial do site.\n\nResposta esperada neste teste: **200**.\n\nRespostas possíveis desta rota:\n\n- `200`: Estatísticas."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
