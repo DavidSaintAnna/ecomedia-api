@@ -9,7 +9,7 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "tsc",
+  "build": "tsc -p tsconfig.build.json",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run --passWithNoTests",
@@ -19,7 +19,12 @@
     "type": "git",
     "url": "git+https://github.com/DavidSaintAnna/ecomedia-api.git"
   },
-  "keywords": ["sdg11", "sustainability", "api", "express"],
+  "keywords": [
+    "sdg11",
+    "sustainability",
+    "api",
+    "express"
+  ],
   "author": "David Saint Anna",
   "license": "MIT",
   "bugs": {
@@ -41,6 +46,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.16",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",

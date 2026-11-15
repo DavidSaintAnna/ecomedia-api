@@ -24,7 +24,7 @@ if (process.env.NODE_ENV === "production") app.set("trust proxy", 1);
 app.use(helmet());
 app.use(cors({ origin: config.corsOrigins }));
 app.use(express.json({ limit: "100kb" }));
-app.use(morgan("dev"));
+if (process.env.NODE_ENV !== "test") app.use(morgan("dev"));
 app.use("/api", apiLimiter);
 
 app.get("/", (_req, res) => {
