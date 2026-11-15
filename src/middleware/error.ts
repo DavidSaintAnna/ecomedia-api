@@ -52,6 +52,29 @@ export const errorHandler: ErrorRequestHandler = (err, _req, res, _next) => {
       .json({ error: "BadRequest", message: "Malformed JSON body" });
     return;
   }
+   if (err?.type === "entity.too.large") {
+     res
+       .status(413)
+       .json({
+         error: "PayloadTooLarge",
+         message: "Request body is too large (max 100kb)",
+       });
+     return;
+   }
+   // Other client errors raised by Express itself (unsupported charset/encoding, aborted request, ...)
+   if (
+     typeof err?.status === "number" &&
+     err.status >= 400 &&
+     err.status < 500
+   ) {
+     res
+       .status(err.status)
+       .json({
+         error: "BadRequest",
+         message: "The request could not be processed",
+       });
+     return;
+   }
   console.error(err);
   res
     .status(500)
