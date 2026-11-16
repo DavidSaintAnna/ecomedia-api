@@ -509,6 +509,23 @@ export const openapi: Obj = {
           401: refResposta('NaoAutenticado'),
         },
       },
+      delete: {
+        tags: ['Usuários'],
+        operationId: 'excluirMinhaConta',
+        summary: 'Excluir a minha conta',
+        description:
+          'Apaga a sua conta **e tudo o que ela criou**: posts, comentários, curtidas e quem você segue ou te segue. Não dá para desfazer. O conteúdo das outras pessoas continua. O único administrador não pode excluir a própria conta.',
+        security: exigeLogin,
+        responses: {
+          204: { description: 'Conta excluída (sem corpo na resposta). O token deixa de funcionar.' },
+          401: refResposta('NaoAutenticado'),
+          404: resposta('A conta já não existe (por exemplo, já foi excluída).', ref('Erro'), { error: 'NotFound', message: 'Usuário não encontrado' }),
+          409: resposta('Você é o único administrador.', ref('Erro'), {
+            error: 'Conflict',
+            message: 'Você é o único administrador, então a sua conta não pode ser excluída',
+          }),
+        },
+      },
     },
     '/api/users/{id}': {
       get: {

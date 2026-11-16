@@ -1362,6 +1362,55 @@
             "$ref": "#/components/responses/NaoAutenticado"
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Usuários"
+        ],
+        "operationId": "excluirMinhaConta",
+        "summary": "Excluir a minha conta",
+        "description": "Apaga a sua conta **e tudo o que ela criou**: posts, comentários, curtidas e quem você segue ou te segue. Não dá para desfazer. O conteúdo das outras pessoas continua. O único administrador não pode excluir a própria conta.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Conta excluída (sem corpo na resposta). O token deixa de funcionar."
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "404": {
+            "description": "A conta já não existe (por exemplo, já foi excluída).",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Usuário não encontrado"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Você é o único administrador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "Conflict",
+                  "message": "Você é o único administrador, então a sua conta não pode ser excluída"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/users/{id}": {

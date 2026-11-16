@@ -24,8 +24,8 @@ interface Passo {
   query?: Record<string, string>;
   /** Corpo da requisição: objeto (vira JSON) ou texto (para usar variáveis como número) */
   corpo?: Obj | string;
-  /** Quem faz a chamada: 'usuario' (padrão), 'admin', 'segunda' ou 'ninguem' */
-  como?: 'usuario' | 'admin' | 'segunda' | 'ninguem';
+  /** Quem faz a chamada: 'usuario' (padrão), 'admin', 'segunda', 'temporaria' ou 'ninguem' */
+  como?: 'usuario' | 'admin' | 'segunda' | 'temporaria' | 'ninguem';
   /** Status HTTP esperado (padrão: o primeiro 2xx documentado) */
   status?: number;
   /** Linhas de JavaScript do Postman executadas ANTES de enviar */
@@ -341,6 +341,25 @@ const FLUXO: Passo[] = [
     como: 'ninguem',
     depois: [usaJson, "pm.test('A segunda pessoa aparece em quem sigo', () => pm.expect(j.data.map(u => String(u.id))).to.include(String(pm.collectionVariables.get('userIdSegunda'))));"],
   },
+  {
+    op: 'excluirMinhaConta',
+    como: 'temporaria',
+    nota: 'Antes de enviar, o Postman cria uma conta temporária só para este teste (assim nenhuma das outras requisições perde o login).',
+    antes: [
+      'pm.sendRequest({',
+      "  url: pm.variables.get('baseUrl') + '/api/auth/register', method: 'POST',",
+      "  header: { 'Content-Type': 'application/json' },",
+      "  body: { mode: 'raw', raw: JSON.stringify({ name: 'Conta Temporária', email: 'temporaria.' + Date.now() + '@exemplo.com', password: pm.collectionVariables.get('senhaUsuario') }) },",
+      "}, (erro, resposta) => { const r = resposta.json(); pm.collectionVariables.set('tokenTemporaria', r.token); pm.collectionVariables.set('userIdTemporaria', r.user.id); });",
+    ],
+  },
+  {
+    op: 'buscarPerfil',
+    nome: 'Conferir que a conta excluída sumiu (erro 404)',
+    id: '{{userIdTemporaria}}',
+    como: 'ninguem',
+    status: 404,
+  },
 
   // Feed
   {
@@ -394,6 +413,7 @@ const TOKEN_POR_PAPEL = {
   usuario: '{{token}}',
   admin: '{{adminToken}}',
   segunda: '{{tokenSegunda}}',
+  temporaria: '{{tokenTemporaria}}',
 } as const;
 
 function statusEsperado(op: Obj): number {
@@ -532,6 +552,8 @@ export function gerarColecao(): Obj {
       { key: 'token', value: '' },
       { key: 'adminToken', value: '' },
       { key: 'tokenSegunda', value: '' },
+      { key: 'tokenTemporaria', value: '' },
+      { key: 'userIdTemporaria', value: '' },
     ],
     auth: { type: 'bearer', bearer: [{ key: 'token', value: '{{token}}', type: 'string' }] },
     item: [...pastas.entries()].map(([name, item]) => ({
