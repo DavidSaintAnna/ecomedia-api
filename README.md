@@ -127,7 +127,7 @@ npm run dev            # liga a API em http://localhost:3333 (Swagger em /api-do
 | `npm run db:migrate` | Aplica as migrações pendentes no banco |
 | `npm run db:seed` | Cria categorias e administrador (pode repetir sem duplicar) |
 | `npm run db:demo -- --sim` | **Apaga** usuários comuns e posts do banco e cria dados de demonstração em português |
-| `npm run docs:gerar` | Regenera `docs/openapi.json` e a coleção do Postman |
+
 
 ---
 
