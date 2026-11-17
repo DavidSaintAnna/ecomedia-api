@@ -6,7 +6,10 @@ Pessoas publicam o que fazem no dia a dia para um futuro mais verde (compostagem
 Este repositório é o **back-end (a API)** do projeto. Ele responde ao **[Objetivo de Desenvolvimento Sustentável 11 da ONU](https://brasil.un.org/pt-br/sdgs/11) — Cidades e Comunidades Sustentáveis**.
 
 > 📖 **Documentação interativa (Swagger):** https://ecomedia-api.onrender.com/api-docs/
-> 2. **Copiar o token:** na **Resposta do servidor → Corpo da resposta**, procure `"token": "eyJ…"` (um texto bem longo). Copie **só o que está entre as aspas** OU SEJA APAGUE "TOKEN": E AS ASPAS!! (pelo ícone de copiar ou selecionando tudo). 
+>
+> 
+> 2. **Copiar o token:** na **Resposta do servidor → Corpo da resposta**, procure `"token": "eyJ…"` (um texto bem longo). Copie **só o que está entre as aspas** OU SEJA APAGUE "TOKEN": E AS ASPAS!! (pelo ícone de copiar ou selecionando tudo).
+>    
 > 🔗 **API publicada:** https://ecomedia-api.onrender.com
 
 ---
