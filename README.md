@@ -5,8 +5,9 @@ Pessoas publicam o que fazem no dia a dia para um futuro mais verde (compostagem
 
 Este repositório é o **back-end (a API)** do projeto. Ele responde ao **[Objetivo de Desenvolvimento Sustentável 11 da ONU](https://brasil.un.org/pt-br/sdgs/11) — Cidades e Comunidades Sustentáveis**.
 
-> 🔗 **API publicada:** https://ecomedia-api.onrender.com
 > 📖 **Documentação interativa (Swagger):** https://ecomedia-api.onrender.com/api-docs/
+> 2. **Copiar o token:** na **Resposta do servidor → Corpo da resposta**, procure `"token": "eyJ…"` (um texto bem longo). Copie **só o que está entre as aspas** OU SEJA APAGUE "TOKEN": E AS ASPAS!! (pelo ícone de copiar ou selecionando tudo). 
+> 🔗 **API publicada:** https://ecomedia-api.onrender.com
 
 ---
 
@@ -80,11 +81,12 @@ O **Swagger** é a página que documenta a API: lista todas as rotas e deixa voc
 - Dentro de uma rota, **Exemplo** é só uma ilustração e **Respostas** mostra o que ela pode devolver (200, 401…).
 
 **Passo a passo: entrar e publicar um post**
-1. **Pegar o token** (o "crachá" de login): abra **Autenticação → `POST /api/auth/login` → Testar**, troque o modelo pelo e-mail e a senha de uma conta de demonstração (`ana.souza@exemplo.com` / `Senha12345`; ou crie a sua em `POST /api/auth/register`) e clique em **Executar**.
-2. **Copiar o token:** na **Resposta do servidor → Corpo da resposta**, procure `"token": "eyJ…"` (um texto bem longo). Copie **só o que está entre as aspas** (pelo ícone de copiar ou selecionando tudo). ⚠️ Não use o token do bloco "Exemplo": ele é falso (termina em `assinatura-de-exemplo`) e dá erro 401.
-3. **Autorizar:** clique no botão **Autorizar** (no topo ou em qualquer 🔒), cole o token em **Valor** (sem escrever "Bearer"), clique em **Autorizar** e depois em **Fechar**. Os cadeados ficam fechados: o Swagger passa a enviar o seu token em todas as rotas.
-4. **Escolher a categoria:** em **Categorias → `GET /api/categories` → Testar → Executar**, anote o `id` da que quiser (ex.: `1`).
-5. **Publicar:** em **Posts → `POST /api/posts` → Testar**, edite o corpo, por exemplo `{"categoryId": 1, "content": "Troquei o carro pela bicicleta hoje!", "city": "Aracaju"}`, e clique em **Executar**. Código **201** = post criado; confira em `GET /api/posts`.
+1. **Pegar o token** (o "crachá" de login): abra **Autenticação → `POST /api/auth/login` → Testar**, troque o modelo pelo e-mail e a senha de uma conta de demonstração (`ana.souza@exemplo.com` / `Senha12345`; ou crie a sua em `POST /api/auth/register`) e clique em **Executar**. **IMPORTANTE!!!!**
+2. **Copiar o token:** na **Resposta do servidor → Corpo da resposta**, procure `"token": "eyJ…"` (um texto bem longo). Copie **só o que está entre as aspas** OU SEJA APAGUE TOKEN E AS ASPAS!! (pelo ícone de copiar ou selecionando tudo). ⚠️ Não use o token do bloco "Exemplo": ele é falso (termina em `assinatura-de-exemplo`) e dá erro 401.
+3. 
+4. **Autorizar:** clique no botão **Autorizar** (no topo ou em qualquer 🔒), cole o token em **Valor** (sem escrever "Bearer"), clique em **Autorizar** e depois em **Fechar**. Os cadeados ficam fechados: o Swagger passa a enviar o seu token em todas as rotas.
+5. **Escolher a categoria:** em **Categorias → `GET /api/categories` → Testar → Executar**, anote o `id` da que quiser (ex.: `1`).
+6. **Publicar:** em **Posts → `POST /api/posts` → Testar**, edite o corpo, por exemplo `{"categoryId": 1, "content": "Troquei o carro pela bicicleta hoje!", "city": "Aracaju"}`, e clique em **Executar**. Código **201** = post criado; confira em `GET /api/posts`.
 
 **Testar as rotas de administrador:** cadastrar-se pela API sempre cria um usuário comum (ninguém vira admin sozinho). Para testar o que só o admin faz (criar, editar e excluir categorias; moderar posts e comentários de qualquer pessoa), repita os passos 1 a 3 entrando com a **conta de administrador de demonstração**: `admin@ecomedia.dev` / `Admin12345`. É uma conta pública, só para avaliação; os dados podem ser restaurados a qualquer momento.
 
