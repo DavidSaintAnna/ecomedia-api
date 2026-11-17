@@ -102,6 +102,8 @@ O **Swagger** é a página que documenta a API: lista todas as rotas e deixa voc
 Você precisa do **Node.js 22.12+** ([nodejs.org](https://nodejs.org)) e de **um banco PostgreSQL**: uma conta grátis no [Neon](https://neon.com) (botão **Connect → Pooled connection** para copiar o endereço) ou Docker local:
 `docker run --name ecomedia-db -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=ecomedia -p 5432:5432 -d postgres:16`
 
+**SIGA O ENV.EXAMPLE!!!!!!!!!**
+
 ```powershell
 git clone https://github.com/DavidSaintAnna/ecomedia-api.git
 cd ecomedia-api
