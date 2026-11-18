@@ -34,6 +34,8 @@ interface Passo {
   depois?: string[];
   /** Explicação extra mostrada na descrição da requisição */
   nota?: string;
+  /** Substitui os testes automáticos padrão (para respostas que não são JSON, por exemplo) */
+  testes?: string[];
 }
 
 const usaJson = 'const j = pm.response.json();';
@@ -398,6 +400,28 @@ const FLUXO: Passo[] = [
     depois: [usaJson, "pm.test('O feed mostra o post de quem eu sigo', () => pm.expect(j.data.length).to.be.at.least(1));", "pm.test('Todos os posts são da pessoa que sigo', () => j.data.forEach(p => pm.expect(String(p.author.id)).to.eql(String(pm.collectionVariables.get('userIdSegunda')))));"],
   },
 
+  // Imagens: o Postman não consegue embutir os bytes de uma foto na coleção, então o corpo é um arquivo que a pessoa escolhe
+  {
+    op: 'enviarImagem',
+    nome: 'Enviar uma foto do computador',
+    nota: 'Na aba **Body**, clique em **Select file** e escolha um PNG, JPEG ou WebP de até 512 KB (se não for PNG, troque o `Content-Type` na aba Headers). Sem arquivo escolhido, a API responde 415 e o teste abaixo aceita isso, para a coleção rodar inteira mesmo assim.',
+    testes: [
+      "pm.test('Status 201 (foto enviada) ou 415 (nenhum arquivo escolhido)', () => pm.expect([201, 415]).to.include(pm.response.code));",
+      "const j = pm.response.json();",
+      "if (pm.response.code === 201) { pm.test('Devolve o link da imagem', () => pm.expect(j.url).to.match(/\\/api\\/images\\/\\d+$/)); pm.collectionVariables.set('imagemId', String(j.id)); } else { pm.collectionVariables.set('imagemId', '999999'); }",
+    ],
+  },
+  {
+    op: 'verImagem',
+    id: '{{imagemId}}',
+    como: 'ninguem',
+    nota: 'Se você enviou uma foto no passo anterior, mostra a foto (200); senão, o número 999999 não existe e a resposta é 404.',
+    testes: [
+      "pm.test('Mostra a imagem (200) ou diz que não existe (404)', () => pm.expect([200, 404]).to.include(pm.response.code));",
+      "if (pm.response.code === 200) pm.test('É uma imagem', () => pm.expect(pm.response.headers.get('Content-Type')).to.match(/^image\\//));",
+    ],
+  },
+
   // Ranking e estatísticas
   {
     op: 'verRanking',
@@ -496,7 +520,12 @@ function montarItem(passo: Passo, o: Operacao): Obj {
     description: descricao(passo, o, status),
   };
 
-  if (o.op.requestBody) {
+  if (o.op.requestBody && !o.op.requestBody.content['application/json']) {
+    // corpo binário (foto): a pessoa escolhe o arquivo no Postman
+    const tipo = Object.keys(o.op.requestBody.content)[0];
+    requisicao.header = [{ key: 'Content-Type', value: tipo }];
+    requisicao.body = { mode: 'file', file: {} };
+  } else if (o.op.requestBody) {
     const exemplo = o.op.requestBody.content['application/json'].example;
     const corpo = passo.corpo ?? exemplo;
     requisicao.header = [{ key: 'Content-Type', value: 'application/json' }];
@@ -507,7 +536,7 @@ function montarItem(passo: Passo, o: Operacao): Obj {
     };
   }
 
-  const testes = [
+  const testes = passo.testes ?? [
     `pm.test('Status ${status}', () => pm.response.to.have.status(${status}));`,
     ...(status === 204 ? [] : ["pm.test('A resposta é JSON', () => pm.response.to.be.json);"]),
     ...(passo.depois ?? []),
@@ -577,6 +606,7 @@ export function gerarColecao(): Obj {
       { key: 'tokenSegunda', value: '' },
       { key: 'tokenTemporaria', value: '' },
       { key: 'userIdTemporaria', value: '' },
+      { key: 'imagemId', value: '' },
     ],
     auth: { type: 'bearer', bearer: [{ key: 'token', value: '{{token}}', type: 'string' }] },
     item: [...pastas.entries()].map(([name, item]) => ({

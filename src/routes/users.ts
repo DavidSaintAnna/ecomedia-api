@@ -5,6 +5,7 @@ import { db } from '../db/index.js';
 import { follows, posts, users } from '../db/schema.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
 import { badRequest, conflict, notFound } from '../utils/errors.js';
+import { limparImagensSoltas } from '../utils/imagens.js';
 import { idParam, paginated, paginationSchema } from '../utils/pagination.js';
 
 export const usersRouter = Router();
@@ -56,6 +57,7 @@ async function assertUserExists(id: number) {
 usersRouter.patch('/me', authenticate, async (req, res) => {
   const body = updateSchema.parse(req.body);
   await db.update(users).set(body).where(eq(users.id, req.user!.id));
+  if ('avatarUrl' in body) await limparImagensSoltas(req.user!.id); // the old photo may no longer be used
   res.json(await loadProfile(req.user!.id, req.user!.id));
 });
 

@@ -134,6 +134,7 @@ export const openapi: Obj = {
     { name: 'Categorias', description: 'Tipos de ação sustentável (Reciclagem, Energia, Água...). A leitura é pública; criar, editar e excluir é só para administradores.' },
     { name: 'Posts', description: 'Publicações de ações sustentáveis. A leitura é pública; escrever exige login.' },
     { name: 'Interações', description: 'Curtidas e comentários nos posts.' },
+    { name: 'Imagens', description: 'Fotos enviadas do computador (foto de perfil e imagem de publicação). Ficam guardadas no banco de dados.' },
     { name: 'Usuários', description: 'Perfis públicos, edição do próprio perfil e seguir/deixar de seguir.' },
     { name: 'Feed', description: 'Linha do tempo com os posts de quem você segue.' },
     { name: 'Ranking e estatísticas', description: 'Quem mais inspira a comunidade e os números gerais da rede.' },
@@ -472,6 +473,66 @@ export const openapi: Obj = {
         },
       },
     },
+    '/api/images': {
+      post: {
+        tags: ['Imagens'],
+        operationId: 'enviarImagem',
+        summary: 'Enviar uma foto do computador',
+        description:
+          'Envie os bytes da imagem direto no corpo da requisição, com o `Content-Type` igual ao tipo do arquivo (`image/png`, `image/jpeg` ou `image/webp`). A API confere o conteúdo do arquivo, não só o nome. Tamanho máximo: 512 KB (o site já reduz a foto antes de enviar). Cada pessoa pode ter até 20 imagens; as que deixam de ser usadas são apagadas sozinhas. A resposta traz o `url` para colocar em `avatarUrl` (PATCH /api/users/me) ou `imageUrl` (post).',
+        security: exigeLogin,
+        requestBody: {
+          required: true,
+          content: {
+            'image/png': { schema: { type: 'string', format: 'binary' } },
+            'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+            'image/webp': { schema: { type: 'string', format: 'binary' } },
+          },
+        },
+        responses: {
+          201: resposta('Imagem guardada.', ref('ImagemEnviada'), {
+            id: 7,
+            contentType: 'image/webp',
+            size: 48213,
+            url: 'https://ecomedia-api.onrender.com/api/images/7',
+          }),
+          401: refResposta('NaoAutenticado'),
+          409: resposta('A pessoa já tem 20 imagens guardadas.', ref('Erro'), {
+            error: 'Conflict',
+            message: 'Você chegou ao limite de 20 imagens. Exclua publicações antigas com foto ou troque a foto do perfil e tente de novo',
+          }),
+          413: resposta('Imagem maior que 512 KB.', ref('Erro'), {
+            error: 'PayloadTooLarge',
+            message: 'A imagem é grande demais (máximo de 512 KB)',
+          }),
+          415: resposta('Não é um PNG, JPEG ou WebP válido (SVG e outros formatos são recusados).', ref('Erro'), {
+            error: 'UnsupportedMediaType',
+            message: 'O arquivo não é uma imagem PNG, JPEG ou WebP válida',
+          }),
+        },
+      },
+    },
+    '/api/images/{id}': {
+      get: {
+        tags: ['Imagens'],
+        operationId: 'verImagem',
+        summary: 'Ver uma imagem enviada',
+        description: 'Pública: não precisa de login, então pode ser usada direto numa tag `<img>`. O navegador guarda a imagem por um ano (ela nunca muda sob o mesmo número).',
+        parameters: [parametroId('Número (id) da imagem.')],
+        responses: {
+          200: {
+            description: 'Os bytes da imagem.',
+            content: {
+              'image/png': { schema: { type: 'string', format: 'binary' } },
+              'image/jpeg': { schema: { type: 'string', format: 'binary' } },
+              'image/webp': { schema: { type: 'string', format: 'binary' } },
+            },
+          },
+          400: refResposta('DadosInvalidos'),
+          404: resposta('Imagem não encontrada.', ref('Erro'), { error: 'NotFound', message: 'Imagem não encontrada' }),
+        },
+      },
+    },
     '/api/comments/{id}': {
       patch: {
         tags: ['Interações'],
@@ -780,6 +841,16 @@ export const openapi: Obj = {
         },
       },
 
+      ImagemEnviada: {
+        type: 'object',
+        properties: {
+          id: { type: 'integer', example: 7 },
+          contentType: { type: 'string', enum: ['image/png', 'image/jpeg', 'image/webp'] },
+          size: { type: 'integer', description: 'Tamanho em bytes.', example: 48213 },
+          url: { type: 'string', format: 'uri', description: 'Link para usar em `avatarUrl` ou `imageUrl`.', example: 'https://ecomedia-api.onrender.com/api/images/7' },
+        },
+      },
+
       Categoria: {
         type: 'object',
         properties: {
@@ -829,7 +900,7 @@ export const openapi: Obj = {
         properties: {
           categoryId: { type: 'integer', minimum: 1, description: 'Número (id) de uma categoria existente.' },
           content: { type: 'string', minLength: 10, maxLength: 1000, description: 'O texto do post: de 10 a 1000 caracteres (espaços nas pontas não contam).' },
-          imageUrl: { type: 'string', format: 'uri', maxLength: 500, description: 'Link de uma imagem (http ou https). Opcional.' },
+          imageUrl: { type: 'string', format: 'uri', maxLength: 500, description: 'Link de uma imagem (http ou https): pode ser de qualquer site ou o `url` devolvido por POST /api/images. Opcional.' },
           city: { type: 'string', minLength: 1, maxLength: 100, description: 'Cidade da ação. Se omitida, usa a cidade do seu perfil.' },
         },
       },

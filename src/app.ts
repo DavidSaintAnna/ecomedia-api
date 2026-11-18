@@ -11,6 +11,7 @@ import { authRouter } from './routes/auth.js';
 import { categoriesRouter } from './routes/categories.js';
 import { commentsRouter } from './routes/comments.js';
 import { feedRouter } from './routes/feed.js';
+import { imagesRouter } from './routes/images.js';
 import { leaderboardRouter } from './routes/leaderboard.js';
 import { likesRouter } from './routes/likes.js';
 import { postsRouter } from './routes/posts.js';
@@ -42,6 +43,7 @@ app.get('/api/health', (_req, res) => {
 app.use('/api/auth', authRouter);
 app.use('/api/categories', categoriesRouter);
 app.use('/api/posts', postsRouter);
+app.use('/api/images', imagesRouter);
 app.use('/api', likesRouter);
 app.use('/api', commentsRouter);
 app.use('/api/users', usersRouter);

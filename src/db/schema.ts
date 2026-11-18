@@ -1,4 +1,7 @@
-import { integer, pgEnum, pgTable, primaryKey, serial, text, timestamp } from 'drizzle-orm/pg-core';
+import { customType, integer, pgEnum, pgTable, primaryKey, serial, text, timestamp } from 'drizzle-orm/pg-core';
+
+// Postgres "bytea": the raw bytes of an uploaded image
+const bytea = customType<{ data: Buffer }>({ dataType: () => 'bytea' });
 
 export const roleEnum = pgEnum('role', ['USER', 'ADMIN']);
 
@@ -52,3 +55,14 @@ export const follows = pgTable('follows', {
   followingId: integer('following_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   createdAt: timestamp('created_at').notNull().defaultNow(),
 }, (t) => [primaryKey({ columns: [t.followerId, t.followingId] })]);
+
+// Photos sent from the person's computer. They live in the database (not on disk) because the free
+// hosting plans wipe the disk on every deploy. The client shrinks them first, and the API caps the size.
+export const images = pgTable('images', {
+  id: serial('id').primaryKey(),
+  ownerId: integer('owner_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  contentType: text('content_type').notNull(),
+  size: integer('size').notNull(),
+  data: bytea('data').notNull(),
+  createdAt: timestamp('created_at').notNull().defaultNow(),
+});

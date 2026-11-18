@@ -5,6 +5,7 @@ import { db } from '../db/index.js';
 import { categories, comments, likes, posts, users } from '../db/schema.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
 import { badRequest, forbidden, notFound } from '../utils/errors.js';
+import { limparImagensSoltas } from '../utils/imagens.js';
 import { idParam, paginated, paginationSchema } from '../utils/pagination.js';
 
 export const postsRouter = Router();
@@ -125,26 +126,29 @@ async function assertCanEdit(postId: number, user: { id: number; role: string })
   const [post] = await db.select({ authorId: posts.authorId }).from(posts).where(eq(posts.id, postId));
   if (!post) throw notFound('Post não encontrado');
   if (user.role !== 'ADMIN' && post.authorId !== user.id) throw forbidden('Você só pode alterar os seus próprios posts');
+  return post.authorId;
 }
 
 // PATCH /posts/:id
 postsRouter.patch('/:id', authenticate, async (req, res) => {
   const { id } = idParam.parse(req.params);
   const body = updateSchema.parse(req.body);
-  await assertCanEdit(id, req.user!);
+  const autorId = await assertCanEdit(id, req.user!);
   if (body.categoryId) await assertCategory(body.categoryId);
 
   await db
     .update(posts)
     .set({ ...body, updatedAt: new Date() })
     .where(eq(posts.id, id));
+  if ('imageUrl' in body) await limparImagensSoltas(autorId); // the old photo may no longer be used
   res.json(await loadPost(id, req.user!.id));
 });
 
 // DELETE /posts/:id
 postsRouter.delete('/:id', authenticate, async (req, res) => {
   const { id } = idParam.parse(req.params);
-  await assertCanEdit(id, req.user!);
+  const autorId = await assertCanEdit(id, req.user!);
   await db.delete(posts).where(eq(posts.id, id));
+  await limparImagensSoltas(autorId);
   res.status(204).end();
 });
