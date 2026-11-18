@@ -1120,6 +1120,7 @@
                       "postId": 1,
                       "content": "Que inspirador! Vou começar a minha também.",
                       "createdAt": "2026-11-15T15:00:00.000Z",
+                      "editedAt": null,
                       "author": {
                         "id": 3,
                         "name": "Bruno Lima",
@@ -1206,6 +1207,7 @@
                   "postId": 1,
                   "content": "Que inspirador! Vou começar a minha também.",
                   "createdAt": "2026-11-15T15:00:00.000Z",
+                  "editedAt": null,
                   "author": {
                     "id": 3,
                     "name": "Bruno Lima",
@@ -1239,6 +1241,103 @@
       }
     },
     "/api/comments/{id}": {
+      "patch": {
+        "tags": [
+          "Interações"
+        ],
+        "operationId": "editarComentario",
+        "summary": "Editar um comentário",
+        "description": "Só quem escreveu o comentário pode editar (o administrador pode excluir, mas não reescrever o que outra pessoa disse). O texto novo segue a mesma regra de quando se comenta: de 10 a 500 caracteres. Depois de editar, `editedAt` mostra quando foi. Enviar o mesmo texto de novo não muda nada.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do comentário.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ComentarioEntrada"
+              },
+              "example": {
+                "content": "Que inspirador! Já comecei a minha composteira."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Comentário atualizado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comentario"
+                },
+                "example": {
+                  "id": 1,
+                  "postId": 1,
+                  "content": "Que inspirador! Já comecei a minha composteira.",
+                  "createdAt": "2026-11-15T15:00:00.000Z",
+                  "editedAt": "2026-11-15T16:30:00.000Z",
+                  "author": {
+                    "id": 3,
+                    "name": "Bruno Lima",
+                    "avatarUrl": null
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "403": {
+            "description": "O comentário é de outra pessoa.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "Forbidden",
+                  "message": "Você só pode editar os seus próprios comentários"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Comentário não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Comentário não encontrado"
+                }
+              }
+            }
+          }
+        }
+      },
       "delete": {
         "tags": [
           "Interações"
@@ -2339,6 +2438,12 @@
             "type": "string",
             "format": "date-time"
           },
+          "editedAt": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true,
+            "description": "Quando o comentário foi editado pela última vez; `null` se nunca foi editado."
+          },
           "author": {
             "type": "object",
             "properties": {
@@ -2364,8 +2469,9 @@
         "properties": {
           "content": {
             "type": "string",
-            "minLength": 1,
-            "maxLength": 500
+            "minLength": 10,
+            "maxLength": 500,
+            "description": "De 10 a 500 caracteres (espaços nas pontas não contam)."
           }
         }
       },

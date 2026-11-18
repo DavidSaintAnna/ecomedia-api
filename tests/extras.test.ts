@@ -21,7 +21,7 @@ beforeAll(async () => {
   // Ana recebe 2 curtidas e Bob recebe 3. Cat ainda não tem posts.
   for (const u of [bob, cat]) await api().post(`/api/posts/${anaPost}/like`).set(auth(u.token));
   for (const u of [ana, cat, bob]) await api().post(`/api/posts/${bobPost}/like`).set(auth(u.token));
-  await api().post(`/api/posts/${anaPost}/comments`).set(auth(bob.token)).send({ content: 'legal' });
+  await api().post(`/api/posts/${anaPost}/comments`).set(auth(bob.token)).send({ content: 'muito legal esse post' });
 });
 
 describe('ranking de colaboradores (leaderboard)', () => {

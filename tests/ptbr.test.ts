@@ -15,7 +15,7 @@ beforeAll(async () => {
   bob = await criarUsuario('Bob');
   reciclagem = (await categorias())['Reciclagem'];
   postId = (await criarPost(ana.token, reciclagem, 'Meu primeiro post')).id;
-  comentarioId = (await api().post(`/api/posts/${postId}/comments`).set(auth(ana.token)).send({ content: 'Oi' })).body.id;
+  comentarioId = (await api().post(`/api/posts/${postId}/comments`).set(auth(ana.token)).send({ content: 'Oi, tudo bem por aí?' })).body.id;
 });
 
 // Todas as situações de erro que a API consegue produzir
@@ -39,13 +39,16 @@ c('JSON quebrado', () => api().post('/api/auth/login').set('Content-Type', 'appl
 c('corpo grande demais', () => api().post('/api/auth/login').set('Content-Type', 'application/json').send(JSON.stringify({ a: 'x'.repeat(200_000) })), 413);
 c('post inexistente', () => api().get('/api/posts/9999'), 404);
 c('post inexistente (curtir)', () => api().post('/api/posts/9999/like').set(auth(ana.token)), 404);
-c('post inexistente (comentar)', () => api().post('/api/posts/9999/comments').set(auth(ana.token)).send({ content: 'oi' }), 404);
+c('post inexistente (comentar)', () => api().post('/api/posts/9999/comments').set(auth(ana.token)).send({ content: 'Oi, tudo bem por aí?' }), 404);
 c('comentário inexistente', () => api().delete('/api/comments/9999').set(auth(ana.token)), 404);
 c('categoria inexistente', () => api().get('/api/categories/9999'), 404);
 c('categoria inexistente dentro do post', () => api().post('/api/posts').set(auth(ana.token)).send({ categoryId: 9999, content: 'texto ok' }), 400);
 c('categoria duplicada', () => api().post('/api/categories').set(auth(admin)).send({ name: 'Reciclagem' }), 409);
 c('categoria em uso', () => api().delete(`/api/categories/${reciclagem}`).set(auth(admin)), 409);
 c('editar post de outra pessoa', () => api().patch(`/api/posts/${postId}`).set(auth(bob.token)).send({ content: 'invadido' }), 403);
+c('editar comentário de outra pessoa', () => api().patch(`/api/comments/${comentarioId}`).set(auth(bob.token)).send({ content: 'Texto de quem não é o autor' }), 403);
+c('comentário inexistente (editar)', () => api().patch('/api/comments/9999').set(auth(ana.token)).send({ content: 'Texto novo para o comentário' }), 404);
+c('comentário curto demais', () => api().patch(`/api/comments/${comentarioId}`).set(auth(ana.token)).send({ content: 'curto' }), 400);
 c('apagar comentário de outra pessoa', () => api().delete(`/api/comments/${comentarioId}`).set(auth(bob.token)), 403);
 c('seguir a si mesmo', () => api().post(`/api/users/${ana.id}/follow`).set(auth(ana.token)), 400);
 c('usuário inexistente', () => api().get('/api/users/9999'), 404);

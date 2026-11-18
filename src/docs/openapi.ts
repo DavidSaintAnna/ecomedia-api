@@ -437,6 +437,7 @@ export const openapi: Obj = {
                 postId: 1,
                 content: 'Que inspirador! Vou começar a minha também.',
                 createdAt: '2026-11-15T15:00:00.000Z',
+                editedAt: null,
                 author: { id: 3, name: 'Bruno Lima', avatarUrl: null },
               },
             ],
@@ -462,6 +463,7 @@ export const openapi: Obj = {
             postId: 1,
             content: 'Que inspirador! Vou começar a minha também.',
             createdAt: '2026-11-15T15:00:00.000Z',
+            editedAt: null,
             author: { id: 3, name: 'Bruno Lima', avatarUrl: null },
           }),
           400: refResposta('DadosInvalidos'),
@@ -471,6 +473,36 @@ export const openapi: Obj = {
       },
     },
     '/api/comments/{id}': {
+      patch: {
+        tags: ['Interações'],
+        operationId: 'editarComentario',
+        summary: 'Editar um comentário',
+        description:
+          'Só quem escreveu o comentário pode editar (o administrador pode excluir, mas não reescrever o que outra pessoa disse). O texto novo segue a mesma regra de quando se comenta: de 10 a 500 caracteres. Depois de editar, `editedAt` mostra quando foi. Enviar o mesmo texto de novo não muda nada.',
+        security: exigeLogin,
+        parameters: [parametroId('Número (id) do comentário.')],
+        requestBody: {
+          required: true,
+          content: conteudo(ref('ComentarioEntrada'), { content: 'Que inspirador! Já comecei a minha composteira.' }),
+        },
+        responses: {
+          200: resposta('Comentário atualizado.', ref('Comentario'), {
+            id: 1,
+            postId: 1,
+            content: 'Que inspirador! Já comecei a minha composteira.',
+            createdAt: '2026-11-15T15:00:00.000Z',
+            editedAt: '2026-11-15T16:30:00.000Z',
+            author: { id: 3, name: 'Bruno Lima', avatarUrl: null },
+          }),
+          400: refResposta('DadosInvalidos'),
+          401: refResposta('NaoAutenticado'),
+          403: resposta('O comentário é de outra pessoa.', ref('Erro'), {
+            error: 'Forbidden',
+            message: 'Você só pode editar os seus próprios comentários',
+          }),
+          404: resposta('Comentário não encontrado.', ref('Erro'), { error: 'NotFound', message: 'Comentário não encontrado' }),
+        },
+      },
       delete: {
         tags: ['Interações'],
         operationId: 'excluirComentario',
@@ -820,6 +852,7 @@ export const openapi: Obj = {
           postId: { type: 'integer' },
           content: { type: 'string' },
           createdAt: { type: 'string', format: 'date-time' },
+          editedAt: { type: 'string', format: 'date-time', nullable: true, description: 'Quando o comentário foi editado pela última vez; `null` se nunca foi editado.' },
           author: {
             type: 'object',
             properties: { id: { type: 'integer' }, name: { type: 'string' }, avatarUrl: { type: 'string', nullable: true } },
@@ -829,7 +862,7 @@ export const openapi: Obj = {
       ComentarioEntrada: {
         type: 'object',
         required: ['content'],
-        properties: { content: { type: 'string', minLength: 1, maxLength: 500 } },
+        properties: { content: { type: 'string', minLength: 10, maxLength: 500, description: 'De 10 a 500 caracteres (espaços nas pontas não contam).' } },
       },
       RespostaCurtida: {
         type: 'object',

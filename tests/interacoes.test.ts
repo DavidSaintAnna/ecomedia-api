@@ -73,29 +73,73 @@ describe('comentários', () => {
   it('validam o texto e o post', async () => {
     expect((await api().post(`/api/posts/${postId}/comments`).set(auth(bob.token)).send({ content: '   ' })).status).toBe(400);
     expect((await api().post(`/api/posts/${postId}/comments`).set(auth(bob.token)).send({ content: 'x'.repeat(501) })).status).toBe(400);
-    expect((await api().post('/api/posts/9999/comments').set(auth(bob.token)).send({ content: 'oi' })).status).toBe(404);
+    expect((await api().post('/api/posts/9999/comments').set(auth(bob.token)).send({ content: 'Comentário num post que não existe' })).status).toBe(404);
     expect((await api().get('/api/posts/9999/comments')).status).toBe(404);
   });
 
+  it('pedem no mínimo 10 caracteres (espaços nas pontas não contam)', async () => {
+    const curto = await api().post(`/api/posts/${postId}/comments`).set(auth(bob.token)).send({ content: '  1234567890  ' }); // 10 caracteres de verdade: vale
+    expect(curto.status).toBe(201);
+    await api().delete(`/api/comments/${curto.body.id}`).set(auth(bob.token));
+    const nove = await api().post(`/api/posts/${postId}/comments`).set(auth(bob.token)).send({ content: '  Parabéns!  ' });
+    expect(nove.status).toBe(400);
+    expect(nove.body.details).toEqual([{ path: 'content', message: 'O comentário precisa ter pelo menos 10 caracteres' }]);
+  });
+
   it('criam o comentário e devolvem o autor, sem e-mail', async () => {
-    const r = await api().post(`/api/posts/${postId}/comments`).set(auth(bob.token)).send({ content: 'Parabéns!' });
+    const r = await api().post(`/api/posts/${postId}/comments`).set(auth(bob.token)).send({ content: 'Parabéns pelo projeto!' });
     expect(r.status).toBe(201);
-    expect(r.body).toMatchObject({ postId, content: 'Parabéns!', author: { id: bob.id, name: 'Bob' } });
+    expect(r.body).toMatchObject({ postId, content: 'Parabéns pelo projeto!', author: { id: bob.id, name: 'Bob' } });
     expect(r.body.author.email).toBeUndefined();
     comentarioId = r.body.id;
-    await api().post(`/api/posts/${postId}/comments`).set(auth(ana.token)).send({ content: 'Obrigada!' });
+    await api().post(`/api/posts/${postId}/comments`).set(auth(ana.token)).send({ content: 'Obrigada pelo carinho!' });
   });
 
   it('listam publicamente, do mais antigo ao mais novo, com paginação', async () => {
     const r = await api().get(`/api/posts/${postId}/comments`);
-    expect(r.body.data.map((c: { content: string }) => c.content)).toEqual(['Parabéns!', 'Obrigada!']);
+    expect(r.body.data.map((c: { content: string }) => c.content)).toEqual(['Parabéns pelo projeto!', 'Obrigada pelo carinho!']);
     expect(r.body.meta).toMatchObject({ total: 2, totalPages: 1 });
     const p2 = await api().get(`/api/posts/${postId}/comments?limit=1&page=2`);
-    expect(p2.body.data.map((c: { content: string }) => c.content)).toEqual(['Obrigada!']);
+    expect(p2.body.data.map((c: { content: string }) => c.content)).toEqual(['Obrigada pelo carinho!']);
   });
 
   it('a contagem aparece no post', async () => {
     expect((await api().get(`/api/posts/${postId}`)).body.commentsCount).toBe(2);
+  });
+
+  it('só o autor edita, e o comentário passa a mostrar quando foi editado', async () => {
+    const lista = async () => (await api().get(`/api/posts/${postId}/comments`)).body.data as { id: number; content: string; editedAt: string | null }[];
+    expect((await lista()).every((c) => c.editedAt === null)).toBe(true);
+
+    expect((await api().patch(`/api/comments/${comentarioId}`).send({ content: 'Parabéns pelo projeto, de novo!' })).status).toBe(401);
+    const outra = await api().patch(`/api/comments/${comentarioId}`).set(auth(ana.token)).send({ content: 'Texto de quem não é o autor' });
+    expect(outra.status).toBe(403);
+    expect(outra.body.message).toBe('Você só pode editar os seus próprios comentários');
+    // o administrador modera (exclui), mas não reescreve o que outra pessoa disse
+    expect((await api().patch(`/api/comments/${comentarioId}`).set(auth(admin)).send({ content: 'Texto escrito pelo administrador' })).status).toBe(403);
+
+    expect((await api().patch('/api/comments/9999').set(auth(bob.token)).send({ content: 'Comentário que não existe' })).status).toBe(404);
+    expect((await api().patch('/api/comments/abc').set(auth(bob.token)).send({ content: 'Comentário com id errado' })).status).toBe(400);
+    expect((await api().patch(`/api/comments/${comentarioId}`).set(auth(bob.token)).send({})).status).toBe(400);
+    expect((await api().patch(`/api/comments/${comentarioId}`).set(auth(bob.token)).send({ content: 'curto' })).status).toBe(400);
+    expect((await api().patch(`/api/comments/${comentarioId}`).set(auth(bob.token)).send({ content: 'x'.repeat(501) })).status).toBe(400);
+
+    const ok = await api().patch(`/api/comments/${comentarioId}`).set(auth(bob.token)).send({ content: '  Parabéns pelo projeto, de novo!  ' });
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ id: comentarioId, postId, content: 'Parabéns pelo projeto, de novo!', author: { id: bob.id } });
+    expect(ok.body.editedAt).toEqual(expect.any(String));
+    expect(ok.body.author.email).toBeUndefined();
+
+    const depois = await lista();
+    expect(depois[0]).toMatchObject({ id: comentarioId, content: 'Parabéns pelo projeto, de novo!' });
+    expect(depois[0].editedAt).not.toBeNull();
+    expect(depois[1].editedAt).toBeNull(); // o outro comentário continua intacto
+  });
+
+  it('enviar o mesmo texto de novo não muda a data da edição', async () => {
+    const antes = (await api().patch(`/api/comments/${comentarioId}`).set(auth(bob.token)).send({ content: 'Parabéns pelo projeto, de novo!' })).body.editedAt;
+    const de_novo = (await api().patch(`/api/comments/${comentarioId}`).set(auth(bob.token)).send({ content: 'Parabéns pelo projeto, de novo!' })).body.editedAt;
+    expect(de_novo).toBe(antes);
   });
 
   it('só o autor do comentário ou um administrador apaga', async () => {
@@ -119,8 +163,8 @@ describe('contagens corretas em vários posts ao mesmo tempo', () => {
     const p3 = (await criarPost(bob.token, cats['Energia'], 'terceiro post de energia')).id;
     for (const u of [ana, bob, cat]) await api().post(`/api/posts/${p1}/like`).set(auth(u.token)); // 3 curtidas
     await api().post(`/api/posts/${p2}/like`).set(auth(bob.token));                                // 1 curtida
-    await api().post(`/api/posts/${p1}/comments`).set(auth(bob.token)).send({ content: 'c1' });    // 1 comentário
-    for (const u of [ana, bob]) await api().post(`/api/posts/${p3}/comments`).set(auth(u.token)).send({ content: 'c' }); // 2
+    await api().post(`/api/posts/${p1}/comments`).set(auth(bob.token)).send({ content: 'comentário número 1' });    // 1 comentário
+    for (const u of [ana, bob]) await api().post(`/api/posts/${p3}/comments`).set(auth(u.token)).send({ content: 'comentário de teste' }); // 2
 
     const lista = (await api().get(`/api/posts?categoryId=${cats['Energia']}`).set(auth(bob.token))).body.data;
     const por = Object.fromEntries(lista.map((p: { id: number }) => [p.id, p]));
@@ -132,7 +176,7 @@ describe('contagens corretas em vários posts ao mesmo tempo', () => {
 
 describe('apagar um post leva junto curtidas e comentários', () => {
   it('em cascata', async () => {
-    await api().post(`/api/posts/${postId}/comments`).set(auth(bob.token)).send({ content: 'tchau' });
+    await api().post(`/api/posts/${postId}/comments`).set(auth(bob.token)).send({ content: 'comentário que vai embora' });
     expect((await api().delete(`/api/posts/${postId}`).set(auth(ana.token))).status).toBe(204);
     expect((await api().get(`/api/posts/${postId}/comments`)).status).toBe(404);
     expect((await api().post(`/api/posts/${postId}/like`).set(auth(bob.token))).status).toBe(404);

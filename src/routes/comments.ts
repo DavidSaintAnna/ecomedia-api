@@ -1,16 +1,17 @@
-import { count, eq } from "drizzle-orm";
-import { Router } from "express";
-import { z } from "zod";
-import { db } from "../db/index.js";
-import { comments, posts, users } from "../db/schema.js";
-import { authenticate } from "../middleware/auth.js";
-import { forbidden, notFound } from "../utils/errors.js";
-import { idParam, paginated, paginationSchema } from "../utils/pagination.js";
+import { count, eq } from 'drizzle-orm';
+import { Router } from 'express';
+import { z } from 'zod';
+import { db } from '../db/index.js';
+import { comments, posts, users } from '../db/schema.js';
+import { authenticate } from '../middleware/auth.js';
+import { forbidden, notFound } from '../utils/errors.js';
+import { idParam, paginated, paginationSchema } from '../utils/pagination.js';
 
 export const commentsRouter = Router();
 
+// A comment must say something: 10 to 500 characters (after trimming spaces)
 const bodySchema = z.object({
-  content: z.string().trim().min(1).max(500),
+  content: z.string().trim().min(10, 'O comentário precisa ter pelo menos 10 caracteres').max(500),
 });
 
 const selectComment = () =>
@@ -20,29 +21,24 @@ const selectComment = () =>
       postId: comments.postId,
       content: comments.content,
       createdAt: comments.createdAt,
+      editedAt: comments.editedAt,
       author: { id: users.id, name: users.name, avatarUrl: users.avatarUrl },
     })
     .from(comments)
     .innerJoin(users, eq(users.id, comments.authorId));
 
 async function assertPostExists(postId: number) {
-  const [post] = await db
-    .select({ id: posts.id })
-    .from(posts)
-    .where(eq(posts.id, postId));
-  if (!post) throw notFound("Post não encontrado");
+  const [post] = await db.select({ id: posts.id }).from(posts).where(eq(posts.id, postId));
+  if (!post) throw notFound('Post não encontrado');
 }
 
 // GET /posts/:id/comments: public, oldest first
-commentsRouter.get("/posts/:id/comments", async (req, res) => {
+commentsRouter.get('/posts/:id/comments', async (req, res) => {
   const { id } = idParam.parse(req.params);
   const { page, limit } = paginationSchema.parse(req.query);
   await assertPostExists(id);
 
-  const [{ total }] = await db
-    .select({ total: count() })
-    .from(comments)
-    .where(eq(comments.postId, id));
+  const [{ total }] = await db.select({ total: count() }).from(comments).where(eq(comments.postId, id));
   const rows = await selectComment()
     .where(eq(comments.postId, id))
     .orderBy(comments.createdAt, comments.id)
@@ -53,7 +49,7 @@ commentsRouter.get("/posts/:id/comments", async (req, res) => {
 });
 
 // POST /posts/:id/comments: logged-in users
-commentsRouter.post("/posts/:id/comments", authenticate, async (req, res) => {
+commentsRouter.post('/posts/:id/comments', authenticate, async (req, res) => {
   const { id } = idParam.parse(req.params);
   const body = bodySchema.parse(req.body);
   await assertPostExists(id);
@@ -68,13 +64,30 @@ commentsRouter.post("/posts/:id/comments", authenticate, async (req, res) => {
 });
 
 // DELETE /comments/:id: comment author or admin
-commentsRouter.delete("/comments/:id", authenticate, async (req, res) => {
+commentsRouter.delete('/comments/:id', authenticate, async (req, res) => {
   const { id } = idParam.parse(req.params);
   const [comment] = await db.select().from(comments).where(eq(comments.id, id));
-  if (!comment) throw notFound("Comentário não encontrado");
-  if (req.user!.role !== "ADMIN" && comment.authorId !== req.user!.id) {
-    throw forbidden("Você só pode excluir os seus próprios comentários");
+  if (!comment) throw notFound('Comentário não encontrado');
+  if (req.user!.role !== 'ADMIN' && comment.authorId !== req.user!.id) {
+    throw forbidden('Você só pode excluir os seus próprios comentários');
   }
   await db.delete(comments).where(eq(comments.id, id));
   res.status(204).end();
+});
+
+// PATCH /comments/:id: only the comment author (an admin can delete a comment, but not put words in someone's mouth)
+commentsRouter.patch('/comments/:id', authenticate, async (req, res) => {
+  const { id } = idParam.parse(req.params);
+  const body = bodySchema.parse(req.body);
+  const [comment] = await db.select().from(comments).where(eq(comments.id, id));
+  if (!comment) throw notFound('Comentário não encontrado');
+  if (comment.authorId !== req.user!.id) {
+    throw forbidden('Você só pode editar os seus próprios comentários');
+  }
+  // sending the same text again changes nothing (and does not mark the comment as edited)
+  if (body.content !== comment.content) {
+    await db.update(comments).set({ content: body.content, editedAt: new Date() }).where(eq(comments.id, id));
+  }
+  const [row] = await selectComment().where(eq(comments.id, id));
+  res.json(row);
 });
