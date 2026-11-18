@@ -1,20 +1,23 @@
-import { and, count, desc, eq, ilike, sql } from "drizzle-orm";
-import { Router } from "express";
-import { z } from "zod";
-import { db } from "../db/index.js";
-import { categories, comments, likes, posts, users } from "../db/schema.js";
-import { authenticate, optionalAuth } from "../middleware/auth.js";
-import { badRequest, forbidden, notFound } from "../utils/errors.js";
-import { idParam, paginated, paginationSchema } from "../utils/pagination.js";
+import { and, count, desc, eq, ilike, sql } from 'drizzle-orm';
+import { Router } from 'express';
+import { z } from 'zod';
+import { db } from '../db/index.js';
+import { categories, comments, likes, posts, users } from '../db/schema.js';
+import { authenticate, optionalAuth } from '../middleware/auth.js';
+import { badRequest, forbidden, notFound } from '../utils/errors.js';
+import { idParam, paginated, paginationSchema } from '../utils/pagination.js';
 
 export const postsRouter = Router();
 
 // Only http(s) image links, so the front-end never renders javascript: URLs
 const imageUrl = z.url({ protocol: /^https?$/ }).max(500);
 
+// A post must say something: 10 to 1000 characters (after trimming spaces)
+const content = z.string().trim().min(10, 'A publicação precisa ter pelo menos 10 caracteres').max(1000);
+
 const createSchema = z.object({
   categoryId: z.number().int().positive(),
-  content: z.string().trim().min(3).max(1000),
+  content,
   imageUrl: imageUrl.optional(),
   city: z.string().trim().min(1).max(100).optional(),
 });
@@ -22,14 +25,12 @@ const createSchema = z.object({
 const updateSchema = z
   .object({
     categoryId: z.number().int().positive(),
-    content: z.string().trim().min(3).max(1000),
+    content,
     imageUrl: imageUrl.nullable(),
     city: z.string().trim().min(1).max(100).nullable(),
   })
   .partial()
-  .refine((v) => Object.keys(v).length > 0, {
-    message: "Envie pelo menos um campo para atualizar",
-  });
+  .refine((v) => Object.keys(v).length > 0, { message: 'Envie pelo menos um campo para atualizar' });
 
 const listQuery = paginationSchema.extend({
   q: z.string().trim().min(1).optional(),
@@ -63,23 +64,18 @@ export const selectPost = (viewerId?: number) =>
 
 async function loadPost(id: number, viewerId?: number) {
   const [row] = await selectPost(viewerId).where(eq(posts.id, id));
-  if (!row) throw notFound("Post não encontrado");
+  if (!row) throw notFound('Post não encontrado');
   return row;
 }
 
 async function assertCategory(id: number) {
-  const [c] = await db
-    .select({ id: categories.id })
-    .from(categories)
-    .where(eq(categories.id, id));
-  if (!c) throw badRequest("A categoria informada (categoryId) não existe");
+  const [c] = await db.select({ id: categories.id }).from(categories).where(eq(categories.id, id));
+  if (!c) throw badRequest('A categoria informada (categoryId) não existe');
 }
 
 // GET /posts: public, filterable and paginated
-postsRouter.get("/", optionalAuth, async (req, res) => {
-  const { page, limit, q, city, categoryId, authorId } = listQuery.parse(
-    req.query,
-  );
+postsRouter.get('/', optionalAuth, async (req, res) => {
+  const { page, limit, q, city, categoryId, authorId } = listQuery.parse(req.query);
 
   const conditions = [];
   if (q) conditions.push(ilike(posts.content, `%${q}%`));
@@ -88,10 +84,7 @@ postsRouter.get("/", optionalAuth, async (req, res) => {
   if (authorId) conditions.push(eq(posts.authorId, authorId));
   const where = conditions.length ? and(...conditions) : undefined;
 
-  const [{ total }] = await db
-    .select({ total: count() })
-    .from(posts)
-    .where(where);
+  const [{ total }] = await db.select({ total: count() }).from(posts).where(where);
   const rows = await selectPost(req.user?.id)
     .where(where)
     .orderBy(desc(posts.createdAt), desc(posts.id))
@@ -102,23 +95,20 @@ postsRouter.get("/", optionalAuth, async (req, res) => {
 });
 
 // GET /posts/:id: public
-postsRouter.get("/:id", optionalAuth, async (req, res) => {
+postsRouter.get('/:id', optionalAuth, async (req, res) => {
   const { id } = idParam.parse(req.params);
   res.json(await loadPost(id, req.user?.id));
 });
 
 // POST /posts: logged-in users
-postsRouter.post("/", authenticate, async (req, res) => {
+postsRouter.post('/', authenticate, async (req, res) => {
   const body = createSchema.parse(req.body);
   await assertCategory(body.categoryId);
 
   // If no city is sent, use the author's own city
   let city = body.city;
   if (!city) {
-    const [me] = await db
-      .select({ city: users.city })
-      .from(users)
-      .where(eq(users.id, req.user!.id));
+    const [me] = await db.select({ city: users.city }).from(users).where(eq(users.id, req.user!.id));
     city = me?.city ?? undefined;
   }
 
@@ -131,21 +121,14 @@ postsRouter.post("/", authenticate, async (req, res) => {
 });
 
 // Author or admin only
-async function assertCanEdit(
-  postId: number,
-  user: { id: number; role: string },
-) {
-  const [post] = await db
-    .select({ authorId: posts.authorId })
-    .from(posts)
-    .where(eq(posts.id, postId));
-  if (!post) throw notFound("Post não encontrado");
-  if (user.role !== "ADMIN" && post.authorId !== user.id)
-    throw forbidden("Você só pode alterar os seus próprios posts");
+async function assertCanEdit(postId: number, user: { id: number; role: string }) {
+  const [post] = await db.select({ authorId: posts.authorId }).from(posts).where(eq(posts.id, postId));
+  if (!post) throw notFound('Post não encontrado');
+  if (user.role !== 'ADMIN' && post.authorId !== user.id) throw forbidden('Você só pode alterar os seus próprios posts');
 }
 
 // PATCH /posts/:id
-postsRouter.patch("/:id", authenticate, async (req, res) => {
+postsRouter.patch('/:id', authenticate, async (req, res) => {
   const { id } = idParam.parse(req.params);
   const body = updateSchema.parse(req.body);
   await assertCanEdit(id, req.user!);
@@ -159,7 +142,7 @@ postsRouter.patch("/:id", authenticate, async (req, res) => {
 });
 
 // DELETE /posts/:id
-postsRouter.delete("/:id", authenticate, async (req, res) => {
+postsRouter.delete('/:id', authenticate, async (req, res) => {
   const { id } = idParam.parse(req.params);
   await assertCanEdit(id, req.user!);
   await db.delete(posts).where(eq(posts.id, id));

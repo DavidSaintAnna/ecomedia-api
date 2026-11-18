@@ -828,7 +828,7 @@ export const openapi: Obj = {
         required: ['categoryId', 'content'],
         properties: {
           categoryId: { type: 'integer', minimum: 1, description: 'Número (id) de uma categoria existente.' },
-          content: { type: 'string', minLength: 3, maxLength: 1000, description: 'O texto do post.' },
+          content: { type: 'string', minLength: 10, maxLength: 1000, description: 'O texto do post: de 10 a 1000 caracteres (espaços nas pontas não contam).' },
           imageUrl: { type: 'string', format: 'uri', maxLength: 500, description: 'Link de uma imagem (http ou https). Opcional.' },
           city: { type: 'string', minLength: 1, maxLength: 100, description: 'Cidade da ação. Se omitida, usa a cidade do seu perfil.' },
         },
@@ -839,7 +839,7 @@ export const openapi: Obj = {
         description: 'Envie pelo menos um campo.',
         properties: {
           categoryId: { type: 'integer', minimum: 1 },
-          content: { type: 'string', minLength: 3, maxLength: 1000 },
+          content: { type: 'string', minLength: 10, maxLength: 1000 },
           imageUrl: { type: 'string', format: 'uri', maxLength: 500, nullable: true },
           city: { type: 'string', minLength: 1, maxLength: 100, nullable: true },
         },

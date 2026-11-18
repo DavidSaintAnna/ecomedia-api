@@ -26,8 +26,19 @@ describe('criar post', () => {
     expect(r.body.details.map((d: { path: string }) => d.path).sort()).toEqual(['categoryId', 'content', 'imageUrl']);
   });
 
+  it('pede no mínimo 10 caracteres no texto (espaços nas pontas não contam)', async () => {
+    const enviar = (content: string) => api().post('/api/posts').set(auth(ana.token)).send({ categoryId: cats['Reciclagem'], content });
+    const curto = await enviar('  Reciclei!  ');
+    expect(curto.status).toBe(400);
+    expect(curto.body.details).toEqual([{ path: 'content', message: 'A publicação precisa ter pelo menos 10 caracteres' }]);
+    const dez = await enviar('  1234567890  ');
+    expect(dez.status).toBe(201);
+    expect(dez.body.content).toBe('1234567890');
+    await api().delete(`/api/posts/${dez.body.id}`).set(auth(ana.token));
+  });
+
   it('só aceita imagens http(s)', async () => {
-    const ftp = await api().post('/api/posts').set(auth(ana.token)).send({ categoryId: cats['Reciclagem'], content: 'texto ok', imageUrl: 'ftp://x.com/a.png' });
+    const ftp = await api().post('/api/posts').set(auth(ana.token)).send({ categoryId: cats['Reciclagem'], content: 'texto de teste ok', imageUrl: 'ftp://x.com/a.png' });
     expect(ftp.status).toBe(400);
   });
 
@@ -127,6 +138,12 @@ describe('editar', () => {
     expect(r.status).toBe(200);
     expect(r.body).toMatchObject({ content: 'Texto atualizado', imageUrl: null });
     expect(new Date(r.body.updatedAt).getTime()).toBeGreaterThanOrEqual(new Date(r.body.createdAt).getTime());
+  });
+
+  it('a edição também exige no mínimo 10 caracteres', async () => {
+    const r = await api().patch(`/api/posts/${postId}`).set(auth(ana.token)).send({ content: 'curto' });
+    expect(r.status).toBe(400);
+    expect(r.body.details[0]).toMatchObject({ path: 'content', message: 'A publicação precisa ter pelo menos 10 caracteres' });
   });
 
   it('o administrador pode mudar a categoria de qualquer post', async () => {

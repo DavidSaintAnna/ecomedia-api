@@ -2376,9 +2376,9 @@
           },
           "content": {
             "type": "string",
-            "minLength": 3,
+            "minLength": 10,
             "maxLength": 1000,
-            "description": "O texto do post."
+            "description": "O texto do post: de 10 a 1000 caracteres (espaços nas pontas não contam)."
           },
           "imageUrl": {
             "type": "string",
@@ -2405,7 +2405,7 @@
           },
           "content": {
             "type": "string",
-            "minLength": 3,
+            "minLength": 10,
             "maxLength": 1000
           },
           "imageUrl": {
