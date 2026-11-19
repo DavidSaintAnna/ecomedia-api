@@ -633,6 +633,28 @@ export const openapi: Obj = {
           404: resposta('Usuário não encontrado.', ref('Erro'), { error: 'NotFound', message: 'Usuário não encontrado' }),
         },
       },
+      delete: {
+        tags: ['Usuários'],
+        operationId: 'excluirUsuario',
+        summary: 'Excluir a conta de outra pessoa (administrador)',
+        description:
+          'Só administrador. Apaga a conta **e tudo o que ela criou** (posts, comentários, curtidas, quem ela segue e quem a segue, imagens). Não dá para desfazer. Não serve para a sua própria conta (use `DELETE /api/users/me`) nem para a de outro administrador.',
+        security: exigeLogin,
+        parameters: [parametroId('Número (id) do usuário a excluir.')],
+        responses: {
+          204: { description: 'Conta excluída (sem corpo na resposta).' },
+          400: resposta('Número inválido, ou tentou excluir a própria conta por aqui.', ref('Erro'), {
+            error: 'BadRequest',
+            message: 'Para excluir a sua própria conta, use a opção em Minha conta',
+          }),
+          401: refResposta('NaoAutenticado'),
+          403: resposta('Quem chamou não é administrador, ou o alvo é outro administrador.', ref('Erro'), {
+            error: 'Forbidden',
+            message: 'Só administradores podem excluir a conta de outra pessoa',
+          }),
+          404: resposta('Usuário não encontrado.', ref('Erro'), { error: 'NotFound', message: 'Usuário não encontrado' }),
+        },
+      },
     },
     '/api/users/{id}/follow': {
       post: {

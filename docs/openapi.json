@@ -1744,6 +1744,82 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "Usuários"
+        ],
+        "operationId": "excluirUsuario",
+        "summary": "Excluir a conta de outra pessoa (administrador)",
+        "description": "Só administrador. Apaga a conta **e tudo o que ela criou** (posts, comentários, curtidas, quem ela segue e quem a segue, imagens). Não dá para desfazer. Não serve para a sua própria conta (use `DELETE /api/users/me`) nem para a de outro administrador.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Número (id) do usuário a excluir.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "example": 1
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Conta excluída (sem corpo na resposta)."
+          },
+          "400": {
+            "description": "Número inválido, ou tentou excluir a própria conta por aqui.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "BadRequest",
+                  "message": "Para excluir a sua própria conta, use a opção em Minha conta"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutenticado"
+          },
+          "403": {
+            "description": "Quem chamou não é administrador, ou o alvo é outro administrador.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "Forbidden",
+                  "message": "Só administradores podem excluir a conta de outra pessoa"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Usuário não encontrado.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "error": "NotFound",
+                  "message": "Usuário não encontrado"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/users/{id}/follow": {

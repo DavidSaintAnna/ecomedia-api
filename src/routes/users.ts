@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { db } from '../db/index.js';
 import { follows, posts, users } from '../db/schema.js';
 import { authenticate, optionalAuth } from '../middleware/auth.js';
-import { badRequest, conflict, notFound } from '../utils/errors.js';
+import { badRequest, conflict, forbidden, notFound } from '../utils/errors.js';
 import { limparImagensSoltas } from '../utils/imagens.js';
 import { idParam, paginated, paginationSchema } from '../utils/pagination.js';
 
@@ -72,6 +72,24 @@ usersRouter.delete('/me', authenticate, async (req, res) => {
     if (total <= 1) throw conflict('Você é o único administrador, então a sua conta não pode ser excluída');
   }
   await db.delete(users).where(eq(users.id, req.user!.id));
+  res.status(204).end();
+});
+
+// DELETE /users/:id: an administrator deletes somebody else's account (moderation).
+// The account goes with everything it created (posts, comments, likes, follows, images), like in DELETE /users/me.
+// Rules: not your own account (use /users/me, which has the "last administrator" safety), and never another
+// administrator's account. The role is read from the database, not from the token, so a demoted admin loses the power at once.
+usersRouter.delete('/:id', authenticate, async (req, res) => {
+  const { id } = idParam.parse(req.params);
+  const [me] = await db.select({ role: users.role }).from(users).where(eq(users.id, req.user!.id));
+  if (me?.role !== 'ADMIN') throw forbidden('Só administradores podem excluir a conta de outra pessoa');
+  if (id === req.user!.id) throw badRequest('Para excluir a sua própria conta, use a opção em Minha conta');
+
+  const [alvo] = await db.select({ role: users.role }).from(users).where(eq(users.id, id));
+  if (!alvo) throw notFound('Usuário não encontrado');
+  if (alvo.role === 'ADMIN') throw forbidden('A conta de outro administrador não pode ser excluída por aqui');
+
+  await db.delete(users).where(eq(users.id, id));
   res.status(204).end();
 });
 
